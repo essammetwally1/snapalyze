@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/onboarding/onboarding_screen.dart';
 import 'package:snapalyze/screens/home_screen.dart';
 
 void main() {
@@ -13,8 +14,11 @@ class Snapalyze extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      routes: {HomeScreen.routeName: (context) => HomeScreen()},
-      initialRoute: HomeScreen.routeName,
+      routes: {
+        HomeScreen.routeName: (context) => HomeScreen(),
+        OnboardingScreen.routeName: (context) => OnboardingScreen(),
+      },
+      initialRoute: OnboardingScreen.routeName,
 
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
