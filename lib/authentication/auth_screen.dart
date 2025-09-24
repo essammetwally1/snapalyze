@@ -95,24 +95,24 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
     return Scaffold(
       backgroundColor: const Color(0xff192028),
-      body: ScrollConfiguration(
-        behavior: MyBehavior(),
-        child: SingleChildScrollView(
-          child: SizedBox(
-            height: size.height,
-            child: Stack(
-              children: [
-                // Background animated circles - BEHIND everything
-                _buildAnimatedCircles(size),
+      body: Stack(
+        children: [
+          // Background animated circles
+          _buildAnimatedCircles(size),
 
-                // Main content - ABOVE the circles
-                isLogin
-                    ? Positioned.fill(child: LoginForm(move: smoothMove))
-                    : Positioned.fill(child: RegisterForm(move: smoothMove)),
-              ],
+          // Main content
+          Positioned.fill(
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: size.height),
+                child: isLogin
+                    ? LoginForm(move: smoothMove)
+                    : RegisterForm(move: smoothMove),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -163,14 +163,11 @@ class MyPainter extends CustomPainter {
     final paint = Paint()
       ..shader = LinearGradient(
         colors: [
-          const Color(0xffFD5E3D).withValues(alpha: 0.1),
-
-          Colors.blue.withValues(alpha: 0.2),
-          const Color.fromARGB(255, 17, 17, 17).withValues(alpha: 0.6),
-
-          const Color(0xffFD5E3D).withValues(alpha: 0.4),
+          const Color(0xffFD5E3D).withAlpha(255 ~/ 10),
+          Colors.blue.withAlpha(255 ~/ 5),
+          const Color.fromARGB(255, 17, 17, 17).withAlpha(255 ~/ 1.7),
+          const Color(0xffFD5E3D).withAlpha(255 ~/ 2.5),
         ],
-
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ).createShader(Rect.fromCircle(center: Offset.zero, radius: radius));
@@ -180,16 +177,4 @@ class MyPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-// Custom Scroll Behavior
-class MyBehavior extends ScrollBehavior {
-  @override
-  Widget buildOverscrollIndicator(
-    BuildContext context,
-    Widget child,
-    ScrollableDetails details,
-  ) {
-    return child;
-  }
 }

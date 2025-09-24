@@ -53,7 +53,7 @@ class AppTheme {
         letterSpacing: 1,
         wordSpacing: 4,
       ),
-      titleLarge: TextStyle(color: black),
+      //in use
       titleMedium: TextStyle(
         color: white,
         fontSize: 16,

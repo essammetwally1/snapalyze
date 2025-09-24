@@ -20,7 +20,7 @@ class Snapalyze extends StatelessWidget {
         OnboardingScreen.routeName: (context) => OnboardingScreen(),
         AuthScreen.routeName: (context) => AuthScreen(),
       },
-      initialRoute: AuthScreen.routeName,
+      initialRoute: OnboardingScreen.routeName,
 
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

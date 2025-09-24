@@ -12,7 +12,6 @@ class LoginForm extends StatefulWidget {
 
   const LoginForm({
     super.key,
-
     this.onLoginPressed,
     this.onForgotPasswordPressed,
     this.onCreateAccountPressed,
@@ -25,121 +24,133 @@ class LoginForm extends StatefulWidget {
 
 class _LoginFormState extends State<LoginForm> {
   GlobalKey<FormState> globalKey = GlobalKey<FormState>();
-  TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
+  bool rememberMe = false;
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final Size size = MediaQuery.of(context).size;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return Column(
-      children: [
-        SizedBox(height: size.height * .1),
-        Text('Login', style: textTheme.labelSmall),
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Form(
+        key: globalKey,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(height: size.height * 0.05),
+            Text('Login', style: textTheme.labelSmall),
 
-            child: Form(
-              key: globalKey,
-              child: Column(
-                children: [
-                  SizedBox(height: size.height * .1),
+            SizedBox(height: size.height * 0.05),
 
-                  // Email Field
-                  CustomTextField(
-                    iconPathName: 'mail',
-                    hintText: 'Enter your email',
-                    isPassword: false,
-                    isEmail: true,
-                    controller: emailController,
-                    validator: (value) {
-                      if (value!.isEmpty) {
-                        return 'Enter e-mail';
-                      } else if (!value.contains('@gmail.com')) {
-                        return 'Enter valid e-mail';
-                      } else {
-                        return null;
-                      }
-                    },
-                  ),
+            // Email Field
+            CustomTextField(
+              iconPathName: 'mail',
+              hintText: 'Enter your email',
+              isPassword: false,
+              isEmail: true,
+              controller: emailController,
+              validator: (value) {
+                if (value!.isEmpty) {
+                  return 'Enter e-mail';
+                } else if (!value.contains('@gmail.com')) {
+                  return 'Enter valid e-mail';
+                }
+                return null;
+              },
+            ),
 
-                  SizedBox(height: 24),
+            SizedBox(height: 20),
 
-                  // Password Field
-                  CustomTextField(
-                    iconPathName: 'password',
-                    hintText: 'Enter your password',
-                    isPassword: true,
-                    isEmail: false,
-                    controller: passwordController,
-                    validator: (value) {
-                      if (value!.isEmpty) {
-                        return 'Enter password';
-                      } else if (value.length < 9) {
-                        return 'Enter valid password -more than 9 letters-';
-                      } else {
-                        return null;
-                      }
-                    },
-                  ),
+            // Password Field
+            CustomTextField(
+              iconPathName: 'password',
+              hintText: 'Enter your password',
+              isPassword: true,
+              isEmail: false,
+              controller: passwordController,
+              validator: (value) {
+                if (value!.isEmpty) {
+                  return 'Enter password';
+                } else if (value.length < 9) {
+                  return 'Password must be at least 9 characters';
+                }
+                return null;
+              },
+            ),
 
-                  SizedBox(height: 24),
+            SizedBox(height: 24),
 
-                  // Login & Forgot Password Buttons Row
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 50),
-                    child: CustomElevatedButton(
-                      isLoading: isLoading,
+            // Login Button
+            CustomElevatedButton(
+              isLoading: isLoading,
+              text: 'Login',
+              onPressed: _handleLogin,
+            ),
 
-                      text: 'Login',
-                      onPressed: () {
-                        if (globalKey.currentState!.validate()) {
-                          HapticFeedback.lightImpact();
-                          Fluttertoast.showToast(msg: 'Login button pressed');
-                          widget.onLoginPressed?.call();
-                        }
-                      },
+            SizedBox(height: 32),
+
+            // OR Divider
+            Row(
+              children: [
+                Expanded(
+                  child: Divider(thickness: 1, color: Colors.grey.shade400),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'OR',
+                    style: textTheme.titleMedium!.copyWith(
+                      color: Colors.grey.shade600,
                     ),
                   ),
-
-                  SizedBox(height: 24),
-
-                  Row(
-                    children: [
-                      Expanded(child: Divider(thickness: 2, indent: 50)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                        child: Text('OR', style: textTheme.titleMedium),
-                      ),
-
-                      Expanded(child: Divider(thickness: 2, endIndent: 50)),
-                    ],
-                  ),
-
-                  SizedBox(height: 24),
-
-                  // Create Account Button
-                  CustomElevatedButton(
-                    text: 'Create a new Account',
-                    onPressed: () {
-                      widget.move!(false);
-                      if (globalKey.currentState!.validate()) {
-                        HapticFeedback.lightImpact();
-                        Fluttertoast.showToast(msg: 'Login button pressed');
-                        widget.onLoginPressed?.call();
-                      }
-                    },
-                  ),
-                ],
-              ),
+                ),
+                Expanded(
+                  child: Divider(thickness: 1, color: Colors.grey.shade400),
+                ),
+              ],
             ),
-          ),
+
+            SizedBox(height: 32),
+
+            // Create Account Button
+            CustomElevatedButton(
+              text: 'Create a new Account',
+              onPressed: () {
+                widget.move?.call(false);
+              },
+            ),
+
+            SizedBox(height: 24),
+          ],
         ),
-      ],
+      ),
     );
+  }
+
+  void _handleLogin() {
+    if (globalKey.currentState!.validate()) {
+      setState(() => isLoading = true);
+
+      HapticFeedback.lightImpact();
+      Fluttertoast.showToast(msg: 'Logging in...');
+
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() => isLoading = false);
+        }
+        widget.onLoginPressed?.call();
+      });
+    }
   }
 }
