@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/authentication/auth_screen.dart';
 import 'package:snapalyze/onboarding/fade_animation.dart';
-import 'package:snapalyze/screens/home_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   static const String routeName = '/onboarding';
@@ -38,7 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _goToAuth() {
-    Navigator.pushReplacementNamed(context, HomeScreen.routeName);
+    Navigator.pushReplacementNamed(context, AuthScreen.routeName);
   }
 
   @override
@@ -223,7 +223,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.blue.withValues(alpha: .5),
+                            color: Colors.blue.withValues(alpha: .1),
                             blurRadius: 2,
                           ),
                         ],
