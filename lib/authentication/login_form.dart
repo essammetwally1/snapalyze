@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:snapalyze/components/custom_elevetedbutton.dart';
 import 'package:snapalyze/components/custom_textfeild.dart';
+import 'package:snapalyze/models/user_model.dart';
+import 'package:snapalyze/screens/home_screen.dart';
+import 'package:snapalyze/services/firebase_service.dart';
+import 'package:snapalyze/utilis.dart';
 
 class LoginForm extends StatefulWidget {
   final VoidCallback? onLoginPressed;
@@ -94,7 +96,11 @@ class _LoginFormState extends State<LoginForm> {
             CustomElevatedButton(
               isLoading: isLoading,
               text: 'Login',
-              onPressed: _handleLogin,
+              onPressed: () {
+                if (globalKey.currentState!.validate()) {
+                  login();
+                }
+              },
             ),
 
             SizedBox(height: 32),
@@ -132,19 +138,30 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
-  void _handleLogin() {
-    if (globalKey.currentState!.validate()) {
-      setState(() => isLoading = true);
+  Future<void> login() async {
+    if (isLoading) return;
 
-      HapticFeedback.lightImpact();
-      Fluttertoast.showToast(msg: 'Logging in...');
+    setState(() {
+      isLoading = true;
+    });
 
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          setState(() => isLoading = false);
-        }
-        widget.onLoginPressed?.call();
-      });
+    try {
+      final UserModel user = await FirebaseService.logIn(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      Utilis.showSuccessMessage('Login Success');
+
+      Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
+    } catch (error) {
+      Utilis.showErrorMessage(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 }

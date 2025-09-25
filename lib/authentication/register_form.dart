@@ -1,5 +1,3 @@
-import 'dart:developer';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:snapalyze/app_theme.dart';
 import 'package:snapalyze/components/custom_elevetedbutton.dart';
@@ -297,9 +295,6 @@ class _RegisterFormState extends State<RegisterForm> {
                   });
                 } else if (globalKey.currentState!.validate() &&
                     selectedGender != null) {
-                  setState(() {
-                    isLoading = true;
-                  });
                   register();
                 }
               },
@@ -313,6 +308,10 @@ class _RegisterFormState extends State<RegisterForm> {
   }
 
   Future<void> register() async {
+    if (isLoading) return;
+    setState(() {
+      isLoading = true;
+    });
     try {
       final UserModel user = await FirebaseService.register(
         name: nameController.text.trim(),
@@ -320,37 +319,11 @@ class _RegisterFormState extends State<RegisterForm> {
         email: emailController.text.trim(),
         gender: selectedGender!,
       );
-      log(user.toString());
 
       Utilis.showSuccessMessage('Register Success');
       Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
     } catch (error) {
-      log('Registration error: ${error.toString()}');
-
-      String errorMessage = 'Registration failed. Please try again.';
-
-      if (error is FirebaseAuthException) {
-        switch (error.code) {
-          case 'email-already-in-use':
-            errorMessage = 'This email is already registered.';
-            break;
-          case 'invalid-email':
-            errorMessage = 'Please enter a valid email address.';
-            break;
-          case 'operation-not-allowed':
-            errorMessage = 'Email/password accounts are not enabled.';
-            break;
-          case 'weak-password':
-            errorMessage = 'Password is too weak.';
-            break;
-          default:
-            errorMessage = error.message ?? 'Registration failed.';
-        }
-      } else if (error is FirebaseException) {
-        errorMessage = error.message ?? 'Firebase error occurred.';
-      }
-
-      Utilis.showErrorMessage(errorMessage);
+      Utilis.showErrorMessage(error.toString());
     } finally {
       setState(() {
         isLoading = false;
