@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primary = Color.fromARGB(255, 23, 104, 170);
+  static const Color primary = Color.fromARGB(255, 8, 52, 88);
   static const Color red = Color(0xFFB22222);
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF000000);
@@ -54,6 +54,11 @@ class AppTheme {
         fontWeight: FontWeight.bold,
         letterSpacing: 1,
         wordSpacing: 4,
+      ),
+      titleLarge: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.w400,
+        color: white,
       ),
       //in use
       titleMedium: TextStyle(
