@@ -1,8 +1,13 @@
 import 'dart:developer';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:snapalyze/app_theme.dart';
 import 'package:snapalyze/components/custom_elevetedbutton.dart';
 import 'package:snapalyze/components/custom_textfeild.dart';
+import 'package:snapalyze/models/user_model.dart';
+import 'package:snapalyze/screens/home_screen.dart';
+import 'package:snapalyze/services/firebase_service.dart';
+import 'package:snapalyze/utilis.dart';
 
 class RegisterForm extends StatefulWidget {
   final VoidCallback? onLoginPressed;
@@ -28,7 +33,6 @@ class _RegisterFormState extends State<RegisterForm> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   TextEditingController confirmPasswordController = TextEditingController();
-  TextEditingController phoneController = TextEditingController();
   Color genderColor = AppTheme.white;
   bool isLoading = false;
   String? selectedGender;
@@ -39,7 +43,6 @@ class _RegisterFormState extends State<RegisterForm> {
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
-    phoneController.dispose();
     super.dispose();
   }
 
@@ -55,8 +58,8 @@ class _RegisterFormState extends State<RegisterForm> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(height: size.height * 0.05),
             Text('Register', style: textTheme.labelSmall),
+            SizedBox(height: size.height * 0.05),
 
             // Gender Selection Section
             Padding(
@@ -78,8 +81,8 @@ class _RegisterFormState extends State<RegisterForm> {
                           padding: EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: selectedGender == 'male'
-                                ? AppTheme.blue.withOpacity(
-                                    0.1,
+                                ? AppTheme.blue.withValues(
+                                    alpha: 0.1,
                                   ) // Fixed: use withOpacity instead of withValues
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
@@ -136,8 +139,8 @@ class _RegisterFormState extends State<RegisterForm> {
                           padding: EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: selectedGender == 'female'
-                                ? AppTheme.blue.withOpacity(
-                                    0.1,
+                                ? AppTheme.blue.withValues(
+                                    alpha: 0.1,
                                   ) // Fixed: use withOpacity
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
@@ -264,24 +267,6 @@ class _RegisterFormState extends State<RegisterForm> {
               },
             ),
 
-            SizedBox(height: 16),
-
-            CustomTextField(
-              controller: phoneController,
-              hintText: 'Phone Number',
-              iconPathName: 'phone',
-              validator: (value) {
-                if (value!.isEmpty) return 'Enter phone number';
-                if (!value.startsWith('+2')) {
-                  return 'Phone number must start with +2';
-                }
-                if (!RegExp(r'^\+2[0-9]{11}$').hasMatch(value)) {
-                  return 'Enter valid phone number (+2 followed by 11 digits)';
-                }
-                return null;
-              },
-            ),
-
             SizedBox(height: 24),
 
             Row(
@@ -310,11 +295,12 @@ class _RegisterFormState extends State<RegisterForm> {
                   setState(() {
                     genderColor = AppTheme.red;
                   });
-                }
-
-                if (globalKey.currentState!.validate()) {
-                  log('Register button pressed - Gender: $selectedGender');
-                  widget.onCreateAccountPressed?.call();
+                } else if (globalKey.currentState!.validate() &&
+                    selectedGender != null) {
+                  setState(() {
+                    isLoading = true;
+                  });
+                  register();
                 }
               },
             ),
@@ -324,5 +310,51 @@ class _RegisterFormState extends State<RegisterForm> {
         ),
       ),
     );
+  }
+
+  Future<void> register() async {
+    try {
+      final UserModel user = await FirebaseService.register(
+        name: nameController.text.trim(),
+        password: passwordController.text.trim(),
+        email: emailController.text.trim(),
+        gender: selectedGender!,
+      );
+      log(user.toString());
+
+      Utilis.showSuccessMessage('Register Success');
+      Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
+    } catch (error) {
+      log('Registration error: ${error.toString()}');
+
+      String errorMessage = 'Registration failed. Please try again.';
+
+      if (error is FirebaseAuthException) {
+        switch (error.code) {
+          case 'email-already-in-use':
+            errorMessage = 'This email is already registered.';
+            break;
+          case 'invalid-email':
+            errorMessage = 'Please enter a valid email address.';
+            break;
+          case 'operation-not-allowed':
+            errorMessage = 'Email/password accounts are not enabled.';
+            break;
+          case 'weak-password':
+            errorMessage = 'Password is too weak.';
+            break;
+          default:
+            errorMessage = error.message ?? 'Registration failed.';
+        }
+      } else if (error is FirebaseException) {
+        errorMessage = error.message ?? 'Firebase error occurred.';
+      }
+
+      Utilis.showErrorMessage(errorMessage);
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 }

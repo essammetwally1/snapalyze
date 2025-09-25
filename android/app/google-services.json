@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "548503497043",
+    "project_id": "snapalyze-a2000",
+    "storage_bucket": "snapalyze-a2000.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:548503497043:android:63649203cc470a2509d9a6",
+        "android_client_info": {
+          "package_name": "com.essamtech.snapalyze"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPccCmZ8dxj55LkHGrUt6-LMNl16J2TFI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

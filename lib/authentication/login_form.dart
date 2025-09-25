@@ -48,7 +48,6 @@ class _LoginFormState extends State<LoginForm> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(height: size.height * 0.05),
             Text('Login', style: textTheme.labelSmall),
 
             SizedBox(height: size.height * 0.05),
@@ -108,12 +107,7 @@ class _LoginFormState extends State<LoginForm> {
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'OR',
-                    style: textTheme.titleMedium!.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
+                  child: Text('OR', style: textTheme.titleMedium),
                 ),
                 Expanded(
                   child: Divider(thickness: 1, color: Colors.grey.shade400),

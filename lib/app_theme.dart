@@ -15,6 +15,7 @@ class AppTheme {
     highlightColor: Colors.transparent,
     splashFactory: NoSplash.splashFactory,
     progressIndicatorTheme: ProgressIndicatorThemeData(
+      circularTrackColor: primary,
       color: white.withValues(alpha: .8),
     ),
 
@@ -45,6 +46,7 @@ class AppTheme {
       ),
       isDense: true,
     ),
+
     textTheme: TextTheme(
       labelSmall: TextStyle(
         color: white.withValues(alpha: .7),

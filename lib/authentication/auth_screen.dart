@@ -146,6 +146,12 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             left: size.width * .8,
             child: CustomPaint(painter: MyPainter(_animation4.value)),
           ),
+
+          Positioned(
+            top: size.height * .7,
+            left: size.width * (_animation1.value + .6),
+            child: CustomPaint(painter: MyPainter(12)),
+          ),
         ],
       ),
     );
