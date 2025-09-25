@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:snapalyze/components/custom_elevetedbutton.dart';
 import 'package:snapalyze/components/custom_textfeild.dart';
 import 'package:snapalyze/models/user_model.dart';
+import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/screens/home_screen.dart';
 import 'package:snapalyze/services/firebase_service.dart';
 import 'package:snapalyze/utilis.dart';
@@ -150,6 +152,7 @@ class _LoginFormState extends State<LoginForm> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+      Provider.of<UserProvider>(context, listen: false).setUser(user);
 
       Utilis.showSuccessMessage('Login Success');
 
