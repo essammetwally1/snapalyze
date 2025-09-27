@@ -7,6 +7,7 @@ import 'package:snapalyze/onboarding/onboarding_screen.dart';
 import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/screens/analysis_screen.dart';
 import 'package:snapalyze/screens/home_screen.dart';
+import 'package:snapalyze/screens/resize_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ class Snapalyze extends StatelessWidget {
       routes: {
         HomeScreen.routeName: (context) => HomeScreen(),
         AnalysisScreen.routeName: (context) => AnalysisScreen(),
+        ResizeScreen.routeName: (context) => ResizeScreen(),
         OnboardingScreen.routeName: (context) => OnboardingScreen(),
         AuthScreen.routeName: (context) => AuthScreen(),
       },

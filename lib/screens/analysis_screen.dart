@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:snapalyze/app_theme.dart';
 import 'package:snapalyze/models/pickedimage_model.dart';
@@ -12,6 +15,13 @@ class AnalysisScreen extends StatefulWidget {
 }
 
 class _AnalysisScreenState extends State<AnalysisScreen> {
+  Future<Size> getImageSize(File file) async {
+    final bytes = await file.readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final fi = await codec.getNextFrame();
+    return Size(fi.image.width.toDouble(), fi.image.height.toDouble());
+  }
+
   @override
   Widget build(BuildContext context) {
     final PickedimageModel image =
@@ -41,32 +51,68 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         child: Column(
           children: [
             // Image Section
-            Container(
-              width: size.width * 0.7,
-              height: size.height * 0.4,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.primary, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primary.withValues(alpha: 0.4),
-                    blurRadius: 100,
+            FutureBuilder<Size>(
+              future: getImageSize(image.pickedImage),
+              builder: (context, snap) {
+                if (!snap.hasData) {
+                  return SizedBox(
+                    width: size.width * 0.7,
+                    height: size.height * 0.4,
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final ar = snap.data!.width / snap.data!.height;
+
+                return Container(
+                  width: size.width * 0.7,
+                  // height scales automatically from AspectRatio
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.primary, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primary.withValues(alpha: 0.4),
+                        blurRadius: 100,
+                      ),
+                      BoxShadow(
+                        color: AppTheme.black.withValues(alpha: 0.4),
+                        blurRadius: 25,
+                      ),
+                    ],
                   ),
-                  BoxShadow(
-                    color: AppTheme.black.withValues(alpha: 0.4),
-                    blurRadius: 25,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(17),
+                    child: AspectRatio(
+                      aspectRatio: ar,
+                      child: Image.file(
+                        image.pickedImage,
+                        fit: BoxFit.contain,
+                        frameBuilder:
+                            (context, child, frame, wasSynchronouslyLoaded) {
+                              if (wasSynchronouslyLoaded) return child;
+                              return AnimatedOpacity(
+                                opacity: frame == null ? 0 : 1,
+                                duration: const Duration(milliseconds: 250),
+                                child: frame == null
+                                    ? const Center(
+                                        child: CircularProgressIndicator(),
+                                      )
+                                    : child,
+                              );
+                            },
+                        errorBuilder: (context, error, stack) => Center(
+                          child: Text(
+                            'Failed to load image',
+                            style: textTheme.titleSmall?.copyWith(
+                              color: AppTheme.red,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(17),
-                child: Image.file(
-                  image.pickedImage,
-                  fit: BoxFit.fill,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              ),
+                );
+              },
             ),
 
             const SizedBox(height: 30),
@@ -140,6 +186,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   decoration: BoxDecoration(
                     color: AppTheme.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
+                    border: BoxBorder.all(color: AppTheme.primary, width: 1),
                   ),
                   child: Icon(
                     Icons.analytics,
@@ -199,9 +246,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   ],
                 ),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppTheme.primary.withValues(alpha: 0.2),
-                ),
+                border: Border.all(color: AppTheme.primary),
               ),
               child: Text(
                 value,
@@ -228,10 +273,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       elevation: 6,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: AppTheme.primary.withValues(alpha: 0.3),
-          width: 2,
-        ),
+        side: BorderSide(color: AppTheme.primary, width: 2),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -245,6 +287,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   decoration: BoxDecoration(
                     color: AppTheme.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
+                    border: BoxBorder.all(color: AppTheme.primary, width: 1),
                   ),
                   child: Icon(
                     Icons.lightbulb_outline,
@@ -296,6 +339,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           decoration: BoxDecoration(
                             color: AppTheme.primary.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(10),
+                            border: BoxBorder.all(
+                              color: AppTheme.primary,
+                              width: 1,
+                            ),
                           ),
                           child: Text(
                             suggestion,
