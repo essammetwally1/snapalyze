@@ -4,9 +4,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:snapalyze/app_theme.dart';
 import 'package:snapalyze/components/home_drawer.dart';
+import 'package:snapalyze/models/pickedimage_model.dart';
 import 'package:snapalyze/models/user_model.dart';
 import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/screens/analysis_screen.dart';
+import 'package:snapalyze/services/analysis_service.dart';
 
 class HomeScreen extends StatefulWidget {
   static const String routeName = '/home';
@@ -17,7 +19,35 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  Map<String, dynamic>? analysisResults;
   File? _pickedImage;
+  bool isLoading = false;
+
+  Future<void> _analyzeImage(File pickedImage) async {
+    if (isLoading) return;
+    setState(() => isLoading = true);
+    try {
+      analysisResults = null; // clear old
+      final results = await AnalysisService.analyzeImage(pickedImage);
+
+      final pickedimageModel = PickedimageModel(
+        pickedImage: pickedImage,
+        results: results, // still a Map<String, dynamic>
+      );
+
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).pushNamed(AnalysisScreen.routeName, arguments: pickedimageModel);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to analyze image: $e')));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
 
   Future<void> pickImage(ImageSource source) async {
     final picker = ImagePicker();
@@ -216,10 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _serviceButton(
                           textTheme: textTheme,
                           onPressed: () {
-                            Navigator.of(context).pushNamed(
-                              AnalysisScreen.routeName,
-                              arguments: _pickedImage,
-                            );
+                            _analyzeImage(_pickedImage!);
                           },
                           text: 'Analyze Image',
                           icon: Icon(
