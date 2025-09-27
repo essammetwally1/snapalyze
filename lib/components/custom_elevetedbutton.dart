@@ -10,7 +10,6 @@ class CustomElevatedButton extends StatelessWidget {
   final double? width;
   final double? height;
   final BorderRadiusGeometry? borderRadius;
-  final bool isGoogleButton;
 
   const CustomElevatedButton({
     super.key,
@@ -23,7 +22,6 @@ class CustomElevatedButton extends StatelessWidget {
     this.width,
     this.height,
     this.borderRadius,
-    this.isGoogleButton = false,
   });
 
   @override

@@ -16,11 +16,23 @@ class AppTheme {
     splashFactory: NoSplash.splashFactory,
     progressIndicatorTheme: ProgressIndicatorThemeData(
       circularTrackColor: primary,
-      color: white.withValues(alpha: .8),
+      color: white.withValues(alpha: .5),
     ),
-
+    appBarTheme: AppBarTheme(
+      backgroundColor: primary,
+      elevation: 0,
+      centerTitle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(30), // Adjust the radius as needed
+        ),
+      ),
+    ),
+    scaffoldBackgroundColor: white,
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.all(primary),
+        foregroundColor: WidgetStateProperty.all(white),
         overlayColor: WidgetStateProperty.all(Colors.transparent),
         elevation: WidgetStateProperty.all(0),
       ),
@@ -49,7 +61,7 @@ class AppTheme {
 
     textTheme: TextTheme(
       labelSmall: TextStyle(
-        color: white.withValues(alpha: .7),
+        color: white,
         fontSize: 30,
         fontWeight: FontWeight.bold,
         letterSpacing: 1,

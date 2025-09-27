@@ -5,6 +5,7 @@ import 'package:snapalyze/app_theme.dart';
 import 'package:snapalyze/authentication/auth_screen.dart';
 import 'package:snapalyze/onboarding/onboarding_screen.dart';
 import 'package:snapalyze/providers/user_provider.dart';
+import 'package:snapalyze/screens/analysis_screen.dart';
 import 'package:snapalyze/screens/home_screen.dart';
 
 void main() async {
@@ -27,6 +28,7 @@ class Snapalyze extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       routes: {
         HomeScreen.routeName: (context) => HomeScreen(),
+        AnalysisScreen.routeName: (context) => AnalysisScreen(),
         OnboardingScreen.routeName: (context) => OnboardingScreen(),
         AuthScreen.routeName: (context) => AuthScreen(),
       },
