@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 class AnalysisService {
-  /// Public API preserved: returns Map<String, dynamic>
   static Future<Map<String, dynamic>> analyzeImage(File image) async {
     try {
       final stat = await image.stat();
@@ -150,9 +149,11 @@ class AnalysisService {
   }
 
   // Simple contrast proxy: normalized std-dev of luma
+  // Fix the contrast method
   static double _contrastApprox(Uint8List rgba, double meanLuma01) {
     double variance = 0;
     final pixelCount = rgba.lengthInBytes ~/ 4;
+    if (pixelCount == 0) return 0.0;
 
     for (int i = 0; i < rgba.lengthInBytes; i += 4) {
       final r = rgba[i];
@@ -163,7 +164,7 @@ class AnalysisService {
       variance += d * d;
     }
     final std = math.sqrt(variance / pixelCount);
-    return (std.clamp(0.0, 1.0)); // <-- fix: clamp returns num
+    return std.clamp(0.0, 1.0).toDouble(); // FIX: Add .toDouble()
   }
 
   // Sharpness proxy: variance of Laplacian (grayscale), normalized

@@ -25,11 +25,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? analysisResults;
   File? _pickedImage;
   Size? _pickedImageSize; // cache intrinsic size once
-  bool isLoading = false;
+  bool isLoadingAnalyze = false;
+  bool isLoadingResize = false;
 
   Future<void> _analyzeImage(File pickedImage) async {
-    if (isLoading) return;
-    setState(() => isLoading = true);
+    if (isLoadingAnalyze) return;
+    setState(() => isLoadingAnalyze = true);
     try {
       analysisResults = null;
       final results = await AnalysisService.analyzeImage(pickedImage);
@@ -48,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to analyze image: $e')));
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) setState(() => isLoadingAnalyze = false);
     }
   }
 
@@ -179,9 +180,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         )
-                      : _framedImageFitted(
-                          file: _pickedImage!,
-                          imageSize: _pickedImageSize,
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: _framedImageFitted(
+                            file: _pickedImage!,
+                            imageSize: _pickedImageSize,
+                          ),
                         ),
                 ),
               ),
@@ -244,6 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         _serviceButton(
                           textTheme: textTheme,
+                          isLoading: isLoadingAnalyze,
                           onPressed: () => _analyzeImage(_pickedImage!),
                           text: 'Analyze Image',
                           icon: const Icon(
@@ -253,8 +258,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         _serviceButton(
+                          isLoading: isLoadingResize,
                           textTheme: textTheme,
                           onPressed: () async {
+                            setState(() {
+                              isLoadingResize = true;
+                            });
                             final results = await AnalysisService.analyzeImage(
                               _pickedImage!,
                             );
@@ -263,10 +272,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               results: results,
                             );
                             if (!mounted) return;
-                            Navigator.of(context).pushNamed(
-                              ResizeScreen.routeName,
-                              arguments: pickedimageModel,
-                            );
+                            setState(() {
+                              isLoadingResize = false;
+                              Navigator.of(context).pushNamed(
+                                ResizeScreen.routeName,
+                                arguments: pickedimageModel,
+                              );
+                            });
                           },
                           text: 'Resize Image',
                           icon: const Icon(
@@ -316,14 +328,8 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primary.withValues(alpha: .2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 6),
-                ),
-                BoxShadow(
-                  color: AppTheme.black.withValues(alpha: .1),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
+                  color: AppTheme.primary.withValues(alpha: .5),
+                  blurRadius: 100,
                 ),
               ],
             ),
@@ -389,6 +395,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onPressed,
     required String text,
     required Icon icon,
+    required bool isLoading,
   }) {
     return Expanded(
       child: Container(
@@ -399,24 +406,28 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(50),
           boxShadow: const [BoxShadow(color: AppTheme.black, blurRadius: 5)],
         ),
-        child: InkWell(
-          onTap: onPressed,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              icon,
-              const SizedBox(height: 8),
-              Text(
-                text,
-                style: textTheme.titleLarge?.copyWith(
-                  fontSize: 20,
-                  color: AppTheme.white,
-                  fontWeight: FontWeight.w700,
+        child: isLoading
+            ? CircularProgressIndicator(
+                padding: EdgeInsets.symmetric(horizontal: 50, vertical: 30),
+              )
+            : InkWell(
+                onTap: onPressed,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    icon,
+                    const SizedBox(height: 8),
+                    Text(
+                      text,
+                      style: textTheme.titleLarge?.copyWith(
+                        fontSize: 20,
+                        color: AppTheme.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }

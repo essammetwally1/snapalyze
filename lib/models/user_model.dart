@@ -26,7 +26,6 @@ class UserModel {
 
   @override
   String toString() {
-    // TODO: implement toString
     return 'UserModel(id: $id, name: $name, email: $email ,gender: $gender) ';
   }
 }
