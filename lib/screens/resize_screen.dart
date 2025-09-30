@@ -248,11 +248,11 @@ class _ResizeScreenState extends State<ResizeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // quick presets (same UI language)
+                      // quick presets (centered)
                       Wrap(
+                        alignment: WrapAlignment.center, // <-- Center children
                         spacing: 8,
                         runSpacing: 8,
-
                         children: [
                           _ratioChip('1:1', 1, 1),
                           _ratioChip('4:3', 4, 3),
@@ -398,13 +398,11 @@ class _ResizeScreenState extends State<ResizeScreen> {
       final width = int.parse(_wCtrl.text);
       final height = int.parse(_hCtrl.text);
 
-      final out = await ResizeService().resize(
+      final out = await ResizeService().resizeExact(
         path: _picked!.pickedImage.path,
         width: width,
         height: height,
         jpegQuality: 90,
-        preventUpscale: true,
-        maintainAspectRatio: false, // FALSE = FORCE exact dimensions
         quality: ResizeQuality.fast, // Fast since we're forcing dimensions
       );
 
