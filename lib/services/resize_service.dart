@@ -1,3 +1,4 @@
+// lib/services/resize_service.dart
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -13,7 +14,7 @@ class ResizeOutput {
   ResizeOutput({required this.file, required this.width, required this.height});
 }
 
-// Quality levels for smooth resizing
+/// Resample quality presets
 enum ResizeQuality {
   fast(img.Interpolation.average),
   balanced(img.Interpolation.linear),
@@ -26,248 +27,378 @@ enum ResizeQuality {
 class ResizeService {
   static const _maxDimension = 8192;
 
-  /// Resize by explicit width & height (px) - FORCES exact dimensions
-  Future<ResizeOutput> resize({
+  /// Manual resize to **exact** width × height (will stretch if aspect differs).
+  Future<ResizeOutput> resizeExact({
     required String path,
     required int width,
     required int height,
     int jpegQuality = 90,
-    bool preventUpscale = true,
-    bool maintainAspectRatio = false, // NEW: Option to maintain proportions
+    bool forceJpeg = false,
     ResizeQuality quality = ResizeQuality.balanced,
   }) async {
-    _validateInputDimensions(width, height);
+    _validateWH(width, height);
 
-    final res = await compute<_ResizeArgs, _ResizeResult>(
-      _resizeIsolate,
-      _ResizeArgs(
+    final res = await compute<_Args, _Res>(
+      _isolate,
+      _Args.stretch(
         path: path,
         width: width,
         height: height,
-        jpegQuality: jpegQuality,
-        preventUpscale: preventUpscale,
-        maintainAspectRatio: maintainAspectRatio,
         interpolation: quality.interpolation,
+        jpegQuality: jpegQuality,
+        forceJpeg: forceJpeg,
       ),
     );
 
-    final outFile = await _writeTempJpeg(res.bytes);
-    return ResizeOutput(file: outFile, width: res.width, height: res.height);
+    final outFile = await _writeTemp(res.bytes, res.ext);
+    return ResizeOutput(file: outFile, width: res.w, height: res.h);
   }
 
-  /// Resize by aspect ratio - SMOOTH resize maintaining proportions
+  /// Resize by **aspect ratio** with **primary side exact**.
+  ///
+  /// - Provide ratio as [aspectW]:[aspectH].
+  /// - If [targetIsWidth] is true, output **width = target** exactly,
+  ///   and height is computed from the ratio (and vice-versa).
+  /// - We **center-crop** the original to the requested ratio (no distortion),
+  ///   then scale to hit the exact target side.
+  ///
+  /// Set [preventUpscale]=true if you prefer not to enlarge small images.
+  /// (In that case, the primary side may end up smaller than target.)
   Future<ResizeOutput> resizeByAspect({
     required String path,
     required int aspectW,
     required int aspectH,
     required int target,
     required bool targetIsWidth,
+    bool preventUpscale = false,
     int jpegQuality = 90,
-    bool preventUpscale = true,
-    ResizeQuality quality =
-        ResizeQuality.smooth, // Default to smooth for aspect ratio
+    bool forceJpeg = false,
+    ResizeQuality quality = ResizeQuality.smooth,
   }) async {
     assert(aspectW > 0 && aspectH > 0 && target > 0);
-    _validateInputDimension(target);
+    _validateDim(target);
 
-    // Get original image dimensions to calculate accurate aspect ratio
-    final originalImage = img.decodeImage(await File(path).readAsBytes());
-    if (originalImage == null) {
-      throw Exception('Unable to decode image.');
-    }
-
-    final double targetRatio = aspectW / aspectH;
-    final double originalRatio = originalImage.width / originalImage.height;
-
-    int outW, outH;
-
-    if (targetIsWidth) {
-      outW = target;
-      outH = (target / targetRatio).round();
-    } else {
-      outH = target;
-      outW = (target * targetRatio).round();
-    }
-
-    // Apply upscale prevention
-    if (preventUpscale) {
-      outW = math.min(outW, originalImage.width);
-      outH = math.min(outH, originalImage.height);
-
-      // Recalculate to maintain aspect ratio after upscale prevention
-      if (targetIsWidth) {
-        outH = (outW / targetRatio).round();
-      } else {
-        outW = (outH * targetRatio).round();
-      }
-    }
-
-    _validateOutputDimensions(outW, outH);
-
-    return resize(
-      path: path,
-      width: outW,
-      height: outH,
-      jpegQuality: jpegQuality,
-      preventUpscale: preventUpscale,
-      maintainAspectRatio:
-          false, // Already calculated exact aspect ratio dimensions
-      quality: quality,
+    final res = await compute<_Args, _Res>(
+      _isolate,
+      _Args.aspectPrimaryExact(
+        path: path,
+        arW: aspectW,
+        arH: aspectH,
+        target: target,
+        targetIsWidth: targetIsWidth,
+        preventUpscale: preventUpscale,
+        interpolation: quality.interpolation,
+        jpegQuality: jpegQuality,
+        forceJpeg: forceJpeg,
+      ),
     );
+
+    final outFile = await _writeTemp(res.bytes, res.ext);
+    return ResizeOutput(file: outFile, width: res.w, height: res.h);
   }
 
-  // ---- Validation helpers ----
-  void _validateInputDimension(int dimension) {
-    if (dimension <= 0) {
-      throw Exception('Dimension must be greater than 0');
-    }
-    if (dimension > _maxDimension) {
-      throw Exception('Dimension cannot exceed $_maxDimension pixels');
+  /// NEW: Force image to fill exactly the specified width or height while maintaining aspect ratio
+  /// This will crop the image to fill the entire area without distortion
+  Future<ResizeOutput> resizeFill({
+    required String path,
+    required int width,
+    required int height,
+    int jpegQuality = 90,
+    bool forceJpeg = false,
+    ResizeQuality quality = ResizeQuality.smooth,
+  }) async {
+    _validateWH(width, height);
+
+    final res = await compute<_Args, _Res>(
+      _isolate,
+      _Args.fill(
+        path: path,
+        width: width,
+        height: height,
+        interpolation: quality.interpolation,
+        jpegQuality: jpegQuality,
+        forceJpeg: forceJpeg,
+      ),
+    );
+
+    final outFile = await _writeTemp(res.bytes, res.ext);
+    return ResizeOutput(file: outFile, width: res.w, height: res.h);
+  }
+
+  // ---------- validation & file helpers ----------
+
+  void _validateDim(int n) {
+    if (n <= 0) throw Exception('Dimension must be > 0');
+    if (n > _maxDimension) {
+      throw Exception('Dimension cannot exceed $_maxDimension');
     }
   }
 
-  void _validateInputDimensions(int width, int height) {
-    _validateInputDimension(width);
-    _validateInputDimension(height);
-    if (width * height > _maxDimension * _maxDimension) {
+  void _validateWH(int w, int h) {
+    _validateDim(w);
+    _validateDim(h);
+    if (w * h > _maxDimension * _maxDimension) {
       throw Exception('Total pixel count exceeds maximum allowed');
     }
   }
 
-  void _validateOutputDimensions(int width, int height) {
-    if (width <= 0 || height <= 0) {
-      throw Exception('Calculated dimensions are invalid: ${width}x$height');
-    }
-    if (width > _maxDimension || height > _maxDimension) {
-      throw Exception(
-        'Calculated dimensions too large: ${width}x$height (max: $_maxDimension)',
-      );
-    }
-  }
-
-  // ---- File helpers ----
-  Future<File> _writeTempJpeg(List<int> bytes) async {
+  Future<File> _writeTemp(List<int> bytes, String ext) async {
     final dir = await getTemporaryDirectory();
     final p =
-        '${dir.path}/resized_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        '${dir.path}/resized_${DateTime.now().millisecondsSinceEpoch}.$ext';
     final f = File(p);
     await f.writeAsBytes(bytes, flush: true);
     return f;
   }
-
-  // Cleanup temporary files
-  Future<void> cleanupTempFiles({int daysOld = 1}) async {
-    try {
-      final dir = await getTemporaryDirectory();
-      final files = dir.listSync();
-      final cutoff = DateTime.now().subtract(Duration(days: daysOld));
-
-      for (final file in files) {
-        if (file is File &&
-            file.path.contains('resized_') &&
-            file.statSync().modified.isBefore(cutoff)) {
-          await file.delete();
-        }
-      }
-    } catch (e) {
-      // Silent cleanup failure
-      if (kDebugMode) {
-        print('Cleanup failed: $e');
-      }
-    }
-  }
 }
 
-// ===== Isolate work =====
+// ================= isolate types & worker =================
 
-class _ResizeArgs {
+class _Args {
   final String path;
-  final int width;
-  final int height;
-  final int jpegQuality;
-  final bool preventUpscale;
-  final bool maintainAspectRatio;
   final img.Interpolation interpolation;
+  final int jpegQuality;
+  final bool forceJpeg;
 
-  _ResizeArgs({
+  // stretch (exact WxH, may distort)
+  final int? width;
+  final int? height;
+
+  // aspect primary exact (no distortion; crop to ratio, then scale)
+  final int? arW;
+  final int? arH;
+  final int? target;
+  final bool? targetIsWidth;
+  final bool? preventUpscale;
+
+  // fill (crop to fill exact dimensions)
+  final bool? isFill;
+
+  _Args._({
     required this.path,
-    required this.width,
-    required this.height,
-    required this.jpegQuality,
-    required this.preventUpscale,
-    required this.maintainAspectRatio,
     required this.interpolation,
+    required this.jpegQuality,
+    required this.forceJpeg,
+    this.width,
+    this.height,
+    this.arW,
+    this.arH,
+    this.target,
+    this.targetIsWidth,
+    this.preventUpscale,
+    this.isFill,
   });
+
+  factory _Args.stretch({
+    required String path,
+    required int width,
+    required int height,
+    required img.Interpolation interpolation,
+    required int jpegQuality,
+    required bool forceJpeg,
+  }) => _Args._(
+    path: path,
+    width: width,
+    height: height,
+    interpolation: interpolation,
+    jpegQuality: jpegQuality,
+    forceJpeg: forceJpeg,
+  );
+
+  factory _Args.aspectPrimaryExact({
+    required String path,
+    required int arW,
+    required int arH,
+    required int target,
+    required bool targetIsWidth,
+    required bool preventUpscale,
+    required img.Interpolation interpolation,
+    required int jpegQuality,
+    required bool forceJpeg,
+  }) => _Args._(
+    path: path,
+    arW: arW,
+    arH: arH,
+    target: target,
+    targetIsWidth: targetIsWidth,
+    preventUpscale: preventUpscale,
+    interpolation: interpolation,
+    jpegQuality: jpegQuality,
+    forceJpeg: forceJpeg,
+  );
+
+  factory _Args.fill({
+    required String path,
+    required int width,
+    required int height,
+    required img.Interpolation interpolation,
+    required int jpegQuality,
+    required bool forceJpeg,
+  }) => _Args._(
+    path: path,
+    width: width,
+    height: height,
+    isFill: true,
+    interpolation: interpolation,
+    jpegQuality: jpegQuality,
+    forceJpeg: forceJpeg,
+  );
 }
 
-class _ResizeResult {
+class _Res {
   final List<int> bytes;
-  final int width;
-  final int height;
-
-  _ResizeResult({
-    required this.bytes,
-    required this.width,
-    required this.height,
-  });
+  final int w;
+  final int h;
+  final String ext; // 'jpg' or 'png'
+  _Res(this.bytes, this.w, this.h, this.ext);
 }
 
-_ResizeResult _resizeIsolate(_ResizeArgs a) {
-  try {
-    final bytes = File(a.path).readAsBytesSync();
-    if (bytes.isEmpty) {
-      throw Exception('Empty file');
+_Res _encode(img.Image im, int jpegQuality, bool forceJpeg) {
+  final hasAlpha = im.hasAlpha;
+  if (!hasAlpha || forceJpeg) {
+    final q = jpegQuality.clamp(1, 100);
+    final jpg = img.encodeJpg(im, quality: q);
+    return _Res(jpg, im.width, im.height, 'jpg');
+  }
+  final png = img.encodePng(im);
+  return _Res(png, im.width, im.height, 'png');
+}
+
+_Res _isolate(_Args a) {
+  final data = File(a.path).readAsBytesSync();
+  if (data.isEmpty) throw Exception('Empty file');
+
+  final decoded0 = img.decodeImage(data);
+  if (decoded0 == null) throw Exception('Unsupported or corrupt image');
+
+  // Bake EXIF so width/height reflect what users see
+  img.Image work = img.bakeOrientation(decoded0);
+
+  // ---- Mode 1: Stretch to exact WxH ----
+  if (a.width != null &&
+      a.height != null &&
+      a.arW == null &&
+      a.isFill != true) {
+    work = img.copyResize(
+      work,
+      width: a.width!,
+      height: a.height!,
+      interpolation: a.interpolation,
+    );
+    return _encode(work, a.jpegQuality, a.forceJpeg);
+  }
+
+  // ---- NEW Mode 2: Fill exact dimensions (crop to fill) ----
+  if (a.isFill == true && a.width != null && a.height != null) {
+    final targetWidth = a.width!;
+    final targetHeight = a.height!;
+    final targetRatio = targetWidth / targetHeight;
+    final srcW = work.width, srcH = work.height;
+    final srcRatio = srcW / srcH;
+
+    // Calculate crop dimensions to fill the target area
+    int cropWidth, cropHeight;
+    double scale;
+
+    if (srcRatio > targetRatio) {
+      // Source is wider than target - crop width
+      cropHeight = srcH;
+      cropWidth = (srcH * targetRatio).round();
+      scale = targetHeight / cropHeight.toDouble();
+    } else {
+      // Source is taller than target - crop height
+      cropWidth = srcW;
+      cropHeight = (srcW / targetRatio).round();
+      scale = targetWidth / cropWidth.toDouble();
     }
 
-    final decoded = img.decodeImage(bytes);
-    if (decoded == null) {
-      throw Exception('Unsupported image format or corrupted file');
-    }
+    // Center crop
+    final x = ((srcW - cropWidth) / 2).round();
+    final y = ((srcH - cropHeight) / 2).round();
 
-    int w = a.width;
-    int h = a.height;
+    work = img.copyCrop(
+      work,
+      x: math.max(0, x),
+      y: math.max(0, y),
+      width: math.min(cropWidth, srcW),
+      height: math.min(cropHeight, srcH),
+    );
 
-    // Maintain aspect ratio if requested
-    if (a.maintainAspectRatio) {
-      final originalRatio = decoded.width / decoded.height;
-      final targetRatio = w / h;
-
-      if (targetRatio > originalRatio) {
-        // Width is the constraining dimension - adjust height
-        h = (w / originalRatio).round();
-      } else {
-        // Height is the constraining dimension - adjust width
-        w = (h * originalRatio).round();
-      }
-    }
-
-    // Apply upscale prevention
-    if (a.preventUpscale) {
-      w = math.min(w, decoded.width);
-      h = math.min(h, decoded.height);
-    }
-
-    // Ensure minimum dimensions
-    w = math.max(1, w);
-    h = math.max(1, h);
-
-    // Perform the resize with specified interpolation
-    final resized = img.copyResize(
-      decoded,
-      width: w,
-      height: h,
+    // Resize to exact target dimensions
+    work = img.copyResize(
+      work,
+      width: targetWidth,
+      height: targetHeight,
       interpolation: a.interpolation,
     );
 
-    // Encode to JPEG with quality control
-    final out = img.encodeJpg(resized, quality: a.jpegQuality.clamp(1, 100));
-
-    return _ResizeResult(
-      bytes: out,
-      width: resized.width,
-      height: resized.height,
-    );
-  } catch (e) {
-    throw Exception('Image resize failed: ${e.toString()}');
+    return _encode(work, a.jpegQuality, a.forceJpeg);
   }
+
+  // ---- Mode 3: Aspect-ratio with primary exact (no distortion) ----
+  if (a.arW != null &&
+      a.arH != null &&
+      a.target != null &&
+      a.targetIsWidth != null) {
+    final targetRatio = a.arW! / a.arH!;
+    final srcW = work.width, srcH = work.height;
+    final srcRatio = srcW / srcH;
+
+    // 1) Center-crop to the requested ratio (no distortion)
+    int cropWidth = srcW;
+    int cropHeight = srcH;
+
+    if (srcRatio > targetRatio) {
+      // too wide: crop width
+      cropWidth = (srcH * targetRatio).round();
+    } else if (srcRatio < targetRatio) {
+      // too tall: crop height
+      cropHeight = (srcW / targetRatio).round();
+    }
+
+    final x = ((srcW - cropWidth) / 2).round();
+    final y = ((srcH - cropHeight) / 2).round();
+
+    work = img.copyCrop(
+      work,
+      x: math.max(0, x),
+      y: math.max(0, y),
+      width: math.min(cropWidth, srcW),
+      height: math.min(cropHeight, srcH),
+    );
+
+    // 2) Compute desired output dimensions from target side
+    int desiredW, desiredH;
+    if (a.targetIsWidth!) {
+      desiredW = a.target!;
+      desiredH = (desiredW / targetRatio).round();
+    } else {
+      desiredH = a.target!;
+      desiredW = (desiredH * targetRatio).round();
+    }
+
+    // 3) Choose scale factor
+    double scale = a.targetIsWidth!
+        ? desiredW / work.width.toDouble()
+        : desiredH / work.height.toDouble();
+
+    if (a.preventUpscale == true) {
+      scale = math.min(scale, 1.0); // don't enlarge beyond current
+    }
+
+    final outW = math.max(1, (work.width * scale).round());
+    final outH = math.max(1, (work.height * scale).round());
+
+    work = img.copyResize(
+      work,
+      width: outW,
+      height: outH,
+      interpolation: a.interpolation,
+    );
+
+    return _encode(work, a.jpegQuality, a.forceJpeg);
+  }
+
+  // Fallback: just encode the original
+  return _encode(work, a.jpegQuality, a.forceJpeg);
 }
