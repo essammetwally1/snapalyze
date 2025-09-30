@@ -53,6 +53,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _resizeImage(File pickedImage) async {
+    setState(() {
+      isLoadingResize = true;
+    });
+    final results = await AnalysisService.analyzeImage(_pickedImage!);
+    final pickedimageModel = PickedimageModel(
+      pickedImage: _pickedImage!,
+      results: results,
+    );
+    if (!mounted) return;
+    setState(() {
+      isLoadingResize = false;
+      Navigator.of(
+        context,
+      ).pushNamed(ResizeScreen.routeName, arguments: pickedimageModel);
+    });
+  }
+
   Future<Size> _decodeImageSize(File file) async {
     final bytes = await file.readAsBytes();
     final codec = await ui.instantiateImageCodec(bytes);
@@ -260,26 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _serviceButton(
                           isLoading: isLoadingResize,
                           textTheme: textTheme,
-                          onPressed: () async {
-                            setState(() {
-                              isLoadingResize = true;
-                            });
-                            final results = await AnalysisService.analyzeImage(
-                              _pickedImage!,
-                            );
-                            final pickedimageModel = PickedimageModel(
-                              pickedImage: _pickedImage!,
-                              results: results,
-                            );
-                            if (!mounted) return;
-                            setState(() {
-                              isLoadingResize = false;
-                              Navigator.of(context).pushNamed(
-                                ResizeScreen.routeName,
-                                arguments: pickedimageModel,
-                              );
-                            });
-                          },
+                          onPressed: () => _resizeImage(_pickedImage!),
                           text: 'Resize Image',
                           icon: const Icon(
                             Icons.aspect_ratio,

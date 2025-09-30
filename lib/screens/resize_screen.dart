@@ -216,7 +216,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
                       ),
                       const SizedBox(height: 16),
                       _primaryButton(
-                        icon: Icons.photo_size_select_large,
+                        icon: Icons.photo_size_select_large_outlined,
                         label: 'Resize',
                         onPressed: (_picked != null && !_loadingDim)
                             ? _onResizeByDimensions
@@ -225,7 +225,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
                       // linear indicator while processing
                       if (_loadingDim) ...[
                         const SizedBox(height: 12),
-                        const LinearProgressIndicator(),
+                        const LinearProgressIndicator(color: AppTheme.primary),
                       ],
                       // result preview + save button
                       if (_dimResult != null) ...[
@@ -359,7 +359,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
 
                       if (_loadingAR) ...[
                         const SizedBox(height: 12),
-                        const LinearProgressIndicator(),
+                        const LinearProgressIndicator(color: AppTheme.primary),
                       ],
 
                       if (_arResult != null) ...[
