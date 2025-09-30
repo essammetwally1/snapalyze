@@ -23,22 +23,30 @@ class ResizeScreen extends StatefulWidget {
 class _ResizeScreenState extends State<ResizeScreen> {
   // --- Shared ---
   PickedimageModel? _picked;
+  Size? _originalSize;
 
   // --- Width x Height section ---
   final _dimFormKey = GlobalKey<FormState>();
   final _wCtrl = TextEditingController();
   final _hCtrl = TextEditingController();
   bool _loadingDim = false;
-  ResizeOutput? _dimResult; // result to preview & save
+  ResizeOutput? _dimResult;
 
   // --- Aspect Ratio section ---
   final _arFormKey = GlobalKey<FormState>();
   final _arWCtrl = TextEditingController(text: '1');
   final _arHCtrl = TextEditingController(text: '1');
-  final _targetCtrl = TextEditingController(); // target width or height
-  bool _targetIsWidth = true; // radio toggle
+  final _targetCtrl = TextEditingController();
+  bool _targetIsWidth = true;
   bool _loadingAR = false;
-  ResizeOutput? _arResult; // result to preview & save
+  ResizeOutput? _arResult;
+
+  // --- Fill section ---
+  final _fillFormKey = GlobalKey<FormState>();
+  final _fillWCtrl = TextEditingController();
+  final _fillHCtrl = TextEditingController();
+  bool _loadingFill = false;
+  ResizeOutput? _fillResult;
 
   @override
   void didChangeDependencies() {
@@ -47,7 +55,19 @@ class _ResizeScreenState extends State<ResizeScreen> {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is PickedimageModel) {
         _picked = args;
+        _loadOriginalSize();
       }
+    }
+  }
+
+  Future<void> _loadOriginalSize() async {
+    if (_picked == null) return;
+
+    final size = await getImageSize(_picked!.pickedImage);
+    if (mounted) {
+      setState(() {
+        _originalSize = size;
+      });
     }
   }
 
@@ -58,14 +78,28 @@ class _ResizeScreenState extends State<ResizeScreen> {
     _arWCtrl.dispose();
     _arHCtrl.dispose();
     _targetCtrl.dispose();
+    _fillWCtrl.dispose();
+    _fillHCtrl.dispose();
     super.dispose();
   }
 
   Future<Size> getImageSize(File file) async {
-    final bytes = await file.readAsBytes();
-    final codec = await ui.instantiateImageCodec(bytes);
-    final fi = await codec.getNextFrame();
-    return Size(fi.image.width.toDouble(), fi.image.height.toDouble());
+    try {
+      final bytes = await file.readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final fi = await codec.getNextFrame();
+      return Size(fi.image.width.toDouble(), fi.image.height.toDouble());
+    } catch (e) {
+      // Fallback: get dimensions from file path analysis if available
+      final results = _picked?.results;
+      if (results != null && results['analysis']['dimensions'] != null) {
+        final dimensions = results['analysis']['dimensions'].split('x');
+        if (dimensions.length == 2) {
+          return Size(double.parse(dimensions[0]), double.parse(dimensions[1]));
+        }
+      }
+      return const Size(300, 300); // Default fallback
+    }
   }
 
   @override
@@ -74,8 +108,6 @@ class _ResizeScreenState extends State<ResizeScreen> {
         ModalRoute.of(context)!.settings.arguments as PickedimageModel;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final Size size = MediaQuery.of(context).size;
-    final List<String> dimensions = image.results['analysis']['dimensions']
-        .split('x');
 
     return Scaffold(
       appBar: AppBar(
@@ -93,7 +125,11 @@ class _ResizeScreenState extends State<ResizeScreen> {
                 // ====== INPUT PREVIEW (original image) ======
                 if (_picked?.pickedImage != null)
                   _card(
-                    title: 'Original',
+                    textTheme: textTheme,
+
+                    title:
+                        'Original ${_originalSize != null ? '(${_originalSize!.width.round()}×${_originalSize!.height.round()})' : ''}',
+
                     child: FutureBuilder<Size>(
                       future: getImageSize(image.pickedImage),
                       builder: (context, snap) {
@@ -172,7 +208,10 @@ class _ResizeScreenState extends State<ResizeScreen> {
 
                 // ====== SECTION 1: By Width × Height ======
                 _card(
+                  textTheme: textTheme,
+
                   title: 'Resize by Width × Height',
+                  subtitle: 'Stretches image to exact dimensions',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -183,32 +222,38 @@ class _ResizeScreenState extends State<ResizeScreen> {
                             Expanded(
                               child: _customTextFeild(
                                 textTheme: textTheme,
-                                hint: dimensions[0],
+                                hint:
+                                    _originalSize?.width.round().toString() ??
+                                    'Width',
                                 label: 'Width (px)',
                                 controller: _wCtrl,
                                 validator: (v) {
                                   if (v == null || v.isEmpty) return 'Required';
                                   final n = int.tryParse(v) ?? 0;
                                   if (n <= 0) return 'Must be > 0';
+                                  if (n > 8192) return 'Max 8192';
                                   return null;
                                 },
-                                loading: !_loadingDim,
+                                enabled: !_loadingDim,
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: _customTextFeild(
                                 textTheme: textTheme,
-                                hint: dimensions[1],
+                                hint:
+                                    _originalSize?.height.round().toString() ??
+                                    'Height',
                                 label: 'Height (px)',
                                 controller: _hCtrl,
                                 validator: (v) {
                                   if (v == null || v.isEmpty) return 'Required';
                                   final n = int.tryParse(v) ?? 0;
                                   if (n <= 0) return 'Must be > 0';
+                                  if (n > 8192) return 'Max 8192';
                                   return null;
                                 },
-                                loading: !_loadingDim,
+                                enabled: !_loadingDim,
                               ),
                             ),
                           ],
@@ -217,20 +262,19 @@ class _ResizeScreenState extends State<ResizeScreen> {
                       const SizedBox(height: 16),
                       _primaryButton(
                         icon: Icons.photo_size_select_large_outlined,
-                        label: 'Resize',
+
+                        label: 'Resize Exact',
                         onPressed: (_picked != null && !_loadingDim)
                             ? _onResizeByDimensions
                             : null,
                       ),
-                      // linear indicator while processing
                       if (_loadingDim) ...[
                         const SizedBox(height: 12),
                         const LinearProgressIndicator(color: AppTheme.primary),
                       ],
-                      // result preview + save button
                       if (_dimResult != null) ...[
                         const SizedBox(height: 12),
-                        _resultPreview(_dimResult!.file),
+                        _resultPreview(_dimResult!, textTheme),
                         const SizedBox(height: 8),
                         _outlineButton(
                           icon: Icons.save_alt,
@@ -241,23 +285,111 @@ class _ResizeScreenState extends State<ResizeScreen> {
                     ],
                   ),
                 ),
+
                 const SizedBox(height: 12),
-                // ====== SECTION 2: By Aspect Ratio ======
+
+                // ====== SECTION 2: Fill Exact Dimensions ======
                 _card(
-                  title: 'Resize by Aspect Ratio',
+                  textTheme: textTheme,
+
+                  title: 'Fill Exact Dimensions',
+                  subtitle: 'Crops image to fill without distortion',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // quick presets (centered)
+                      Form(
+                        key: _fillFormKey,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _customTextFeild(
+                                textTheme: textTheme,
+                                hint:
+                                    _originalSize?.width.round().toString() ??
+                                    'Width',
+                                label: 'Width (px)',
+                                controller: _fillWCtrl,
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) return 'Required';
+                                  final n = int.tryParse(v) ?? 0;
+                                  if (n <= 0) return 'Must be > 0';
+                                  if (n > 8192) return 'Max 8192';
+                                  return null;
+                                },
+                                enabled: !_loadingFill,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _customTextFeild(
+                                textTheme: textTheme,
+                                hint:
+                                    _originalSize?.height.round().toString() ??
+                                    'Height',
+                                label: 'Height (px)',
+                                controller: _fillHCtrl,
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) return 'Required';
+                                  final n = int.tryParse(v) ?? 0;
+                                  if (n <= 0) return 'Must be > 0';
+                                  if (n > 8192) return 'Max 8192';
+                                  return null;
+                                },
+                                enabled: !_loadingFill,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _primaryButton(
+                        icon: Icons.crop,
+                        label: 'Fill Dimensions',
+                        onPressed: (_picked != null && !_loadingFill)
+                            ? _onResizeFill
+                            : null,
+                      ),
+                      if (_loadingFill) ...[
+                        const SizedBox(height: 12),
+                        const LinearProgressIndicator(color: AppTheme.primary),
+                      ],
+                      if (_fillResult != null) ...[
+                        const SizedBox(height: 12),
+                        _resultPreview(_fillResult!, textTheme),
+                        const SizedBox(height: 8),
+                        _outlineButton(
+                          icon: Icons.save_alt,
+                          label: 'Save to Gallery',
+                          onPressed: () => _saveToGallery(_fillResult!.file),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // ====== SECTION 3: By Aspect Ratio ======
+                _card(
+                  title: 'Resize by Aspect Ratio',
+                  subtitle: 'Crops to aspect ratio then scales',
+                  textTheme: textTheme,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // quick presets
                       Wrap(
-                        alignment: WrapAlignment.center, // <-- Center children
+                        alignment: WrapAlignment.center,
                         spacing: 8,
                         runSpacing: 8,
                         children: [
                           _ratioChip('1:1', 1, 1),
                           _ratioChip('4:3', 4, 3),
+                          _ratioChip('3:4', 3, 4),
                           _ratioChip('3:2', 3, 2),
                           _ratioChip('16:9', 16, 9),
+                          _ratioChip('9:16', 9, 16),
+                          _ratioChip('2:3', 2, 3),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -278,7 +410,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
                                       if (n <= 0) return 'Must be > 0';
                                       return null;
                                     },
-                                    loading: !_loadingAR,
+                                    enabled: !_loadingAR,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -292,14 +424,13 @@ class _ResizeScreenState extends State<ResizeScreen> {
                                       if (n <= 0) return 'Must be > 0';
                                       return null;
                                     },
-                                    loading: !_loadingAR,
+                                    enabled: !_loadingAR,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 12),
 
-                            // inside your Column
                             RadioGroup<bool>.row(
                               value: _targetIsWidth,
                               onChanged: _loadingAR
@@ -307,6 +438,8 @@ class _ResizeScreenState extends State<ResizeScreen> {
                                   : (v) {
                                       if (v != null) {
                                         setState(() => _targetIsWidth = v);
+                                        _targetCtrl.text =
+                                            ''; // Clear target when switching
                                       }
                                     },
                               children: [
@@ -337,13 +470,15 @@ class _ResizeScreenState extends State<ResizeScreen> {
                               label: _targetIsWidth
                                   ? 'Target Width (px)'
                                   : 'Target Height (px)',
+                              hint: _targetIsWidth ? 'e.g., 800' : 'e.g., 600',
                               controller: _targetCtrl,
                               validator: (v) {
                                 final n = int.tryParse(v ?? '') ?? 0;
                                 if (n <= 0) return 'Must be > 0';
+                                if (n > 8192) return 'Max 8192';
                                 return null;
                               },
-                              loading: !_loadingAR,
+                              enabled: !_loadingAR,
                             ),
                           ],
                         ),
@@ -351,7 +486,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
                       const SizedBox(height: 16),
                       _primaryButton(
                         icon: Icons.aspect_ratio,
-                        label: 'Resize',
+                        label: 'Resize by Aspect',
                         onPressed: (_picked != null && !_loadingAR)
                             ? _onResizeByAspect
                             : null,
@@ -364,7 +499,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
 
                       if (_arResult != null) ...[
                         const SizedBox(height: 12),
-                        _resultPreview(_arResult!.file),
+                        _resultPreview(_arResult!, textTheme),
                         const SizedBox(height: 8),
                         _outlineButton(
                           icon: Icons.save_alt,
@@ -382,7 +517,6 @@ class _ResizeScreenState extends State<ResizeScreen> {
       ),
     );
   }
-
   // ===== Actions =====
 
   Future<void> _onResizeByDimensions() async {
@@ -403,7 +537,8 @@ class _ResizeScreenState extends State<ResizeScreen> {
         width: width,
         height: height,
         jpegQuality: 90,
-        quality: ResizeQuality.fast, // Fast since we're forcing dimensions
+
+        quality: ResizeQuality.balanced,
       );
 
       if (!mounted) return;
@@ -413,6 +548,37 @@ class _ResizeScreenState extends State<ResizeScreen> {
       Utilis.showErrorMessage('Resize failed: $e');
     } finally {
       if (mounted) setState(() => _loadingDim = false);
+    }
+  }
+
+  Future<void> _onResizeFill() async {
+    if (_picked == null) return;
+    if (!_fillFormKey.currentState!.validate()) return;
+
+    setState(() {
+      _loadingFill = true;
+      _fillResult = null;
+    });
+
+    try {
+      final width = int.parse(_fillWCtrl.text);
+      final height = int.parse(_fillHCtrl.text);
+
+      final out = await ResizeService().resizeFill(
+        path: _picked!.pickedImage.path,
+        width: width,
+        height: height,
+        jpegQuality: 90,
+        quality: ResizeQuality.smooth,
+      );
+
+      if (!mounted) return;
+      setState(() => _fillResult = out);
+      Utilis.showSuccessMessage('Image filled to exact dimensions (cropped).');
+    } catch (e) {
+      Utilis.showErrorMessage('Fill resize failed: $e');
+    } finally {
+      if (mounted) setState(() => _loadingFill = false);
     }
   }
 
@@ -437,12 +603,12 @@ class _ResizeScreenState extends State<ResizeScreen> {
         target: target,
         targetIsWidth: _targetIsWidth,
         jpegQuality: 90,
-        preventUpscale: true,
-        quality: ResizeQuality.smooth, // SMOOTH for aspect ratio resize
+        preventUpscale: false,
+        quality: ResizeQuality.smooth,
       );
 
       if (!mounted) return;
-      Utilis.showSuccessMessage('Image resized smoothly with aspect ratio.');
+      Utilis.showSuccessMessage('Image resized with aspect ratio.');
       setState(() {
         _arResult = out;
       });
@@ -461,7 +627,6 @@ class _ResizeScreenState extends State<ResizeScreen> {
       }
       if (!status.isGranted) {
         Utilis.showErrorMessage('Permission denied to save image.');
-
         return;
       }
       await ImageGallerySaverPlus.saveFile(f.path);
@@ -471,29 +636,29 @@ class _ResizeScreenState extends State<ResizeScreen> {
     }
   }
 
-  // ===== Small UI helpers (respect AppTheme) =====
+  // ===== UI helpers =====
+
   Widget _customTextFeild({
     required TextTheme textTheme,
     required String label,
     required TextEditingController controller,
     required String? Function(String?)? validator,
-    required bool loading,
+    required bool enabled,
     String? hint,
   }) {
     return TextFormField(
       style: textTheme.titleMedium!.copyWith(color: AppTheme.primary),
       cursorColor: AppTheme.primary,
       controller: controller,
-      enabled: loading,
-
+      enabled: enabled,
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       onTapOutside: (_) => FocusScope.of(context).unfocus(),
       decoration: InputDecoration(
         labelText: label,
-        hint: hint != null ? Text(hint) : null,
+        hintText: hint,
         hintStyle: textTheme.titleMedium!.copyWith(
-          color: AppTheme.primary.withValues(alpha: .7),
+          color: AppTheme.primary.withValues(alpha: 0.7),
         ),
         labelStyle: textTheme.titleMedium!.copyWith(color: AppTheme.primary),
         enabledBorder: OutlineInputBorder(
@@ -518,7 +683,12 @@ class _ResizeScreenState extends State<ResizeScreen> {
     );
   }
 
-  Widget _card({required String title, required Widget child}) {
+  Widget _card({
+    required TextTheme textTheme,
+    required String title,
+    String? subtitle,
+    required Widget child,
+  }) {
     return Card(
       elevation: 1.5,
       color: AppTheme.white,
@@ -532,13 +702,27 @@ class _ResizeScreenState extends State<ResizeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              title,
-              style: TextStyle(
-                color: AppTheme.primary,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: textTheme.titleSmall!.copyWith(
+                      color: AppTheme.black,
+                    ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 8),
             child,
@@ -561,7 +745,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
         label: Text(label, style: const TextStyle(color: AppTheme.white)),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primary,
-          disabledBackgroundColor: AppTheme.grey.withValues(alpha: .5),
+          disabledBackgroundColor: AppTheme.grey.withValues(alpha: 0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -611,23 +795,31 @@ class _ResizeScreenState extends State<ResizeScreen> {
     );
   }
 
-  Widget _resultPreview(File file) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        color: AppTheme.grey.withValues(alpha: 0.12),
-        constraints: const BoxConstraints(minHeight: 120, maxHeight: 320),
-        child: Image.file(
-          file,
-          fit: BoxFit.contain,
-          filterQuality: FilterQuality.medium,
+  Widget _resultPreview(ResizeOutput result, TextTheme textTheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Result: ${result.width}×${result.height}',
+          style: textTheme.titleSmall?.copyWith(color: AppTheme.primary),
         ),
-      ),
+        const SizedBox(height: 8),
+        Center(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.file(
+              result.file,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.medium,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ===== RadioGroup shim (no deprecated APIs; same visual style) =====
+// ===== RadioGroup (keep your existing implementation) =====
 class RadioOption<T> {
   final T value;
   final Widget label;

@@ -9,7 +9,7 @@ import 'package:snapalyze/screens/analysis_screen.dart';
 import 'package:snapalyze/screens/home_screen.dart';
 import 'package:snapalyze/screens/resize_screen.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   runApp(

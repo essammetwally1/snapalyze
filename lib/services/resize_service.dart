@@ -33,7 +33,8 @@ class ResizeService {
     required int width,
     required int height,
     int jpegQuality = 90,
-    bool forceJpeg = false, // if true, always outputs JPEG (drops alpha)
+
+    bool forceJpeg = false,
     ResizeQuality quality = ResizeQuality.balanced,
   }) async {
     _validateWH(width, height);
@@ -97,6 +98,34 @@ class ResizeService {
     return ResizeOutput(file: outFile, width: res.w, height: res.h);
   }
 
+  /// NEW: Force image to fill exactly the specified width or height while maintaining aspect ratio
+  /// This will crop the image to fill the entire area without distortion
+  Future<ResizeOutput> resizeFill({
+    required String path,
+    required int width,
+    required int height,
+    int jpegQuality = 90,
+    bool forceJpeg = false,
+    ResizeQuality quality = ResizeQuality.smooth,
+  }) async {
+    _validateWH(width, height);
+
+    final res = await compute<_Args, _Res>(
+      _isolate,
+      _Args.fill(
+        path: path,
+        width: width,
+        height: height,
+        interpolation: quality.interpolation,
+        jpegQuality: jpegQuality,
+        forceJpeg: forceJpeg,
+      ),
+    );
+
+    final outFile = await _writeTemp(res.bytes, res.ext);
+    return ResizeOutput(file: outFile, width: res.w, height: res.h);
+  }
+
   // ---------- validation & file helpers ----------
 
   void _validateDim(int n) {
@@ -143,6 +172,9 @@ class _Args {
   final bool? targetIsWidth;
   final bool? preventUpscale;
 
+  // fill (crop to fill exact dimensions)
+  final bool? isFill;
+
   _Args._({
     required this.path,
     required this.interpolation,
@@ -155,6 +187,8 @@ class _Args {
     this.target,
     this.targetIsWidth,
     this.preventUpscale,
+
+    this.isFill,
   });
 
   factory _Args.stretch({
@@ -194,6 +228,23 @@ class _Args {
     jpegQuality: jpegQuality,
     forceJpeg: forceJpeg,
   );
+
+  factory _Args.fill({
+    required String path,
+    required int width,
+    required int height,
+    required img.Interpolation interpolation,
+    required int jpegQuality,
+    required bool forceJpeg,
+  }) => _Args._(
+    path: path,
+    width: width,
+    height: height,
+    isFill: true,
+    interpolation: interpolation,
+    jpegQuality: jpegQuality,
+    forceJpeg: forceJpeg,
+  );
 }
 
 class _Res {
@@ -226,7 +277,11 @@ _Res _isolate(_Args a) {
   img.Image work = img.bakeOrientation(decoded0);
 
   // ---- Mode 1: Stretch to exact WxH ----
-  if (a.width != null && a.height != null && a.arW == null) {
+
+  if (a.width != null &&
+      a.height != null &&
+      a.arW == null &&
+      a.isFill != true) {
     work = img.copyResize(
       work,
       width: a.width!,
@@ -236,7 +291,54 @@ _Res _isolate(_Args a) {
     return _encode(work, a.jpegQuality, a.forceJpeg);
   }
 
-  // ---- Mode 2: Aspect-ratio with primary exact (no distortion) ----
+  // ---- NEW Mode 2: Fill exact dimensions (crop to fill) ----
+  if (a.isFill == true && a.width != null && a.height != null) {
+    final targetWidth = a.width!;
+    final targetHeight = a.height!;
+    final targetRatio = targetWidth / targetHeight;
+    final srcW = work.width, srcH = work.height;
+    final srcRatio = srcW / srcH;
+
+    // Calculate crop dimensions to fill the target area
+    int cropWidth, cropHeight;
+    double scale;
+
+    if (srcRatio > targetRatio) {
+      // Source is wider than target - crop width
+      cropHeight = srcH;
+      cropWidth = (srcH * targetRatio).round();
+      scale = targetHeight / cropHeight.toDouble();
+    } else {
+      // Source is taller than target - crop height
+      cropWidth = srcW;
+      cropHeight = (srcW / targetRatio).round();
+      scale = targetWidth / cropWidth.toDouble();
+    }
+
+    // Center crop
+    final x = ((srcW - cropWidth) / 2).round();
+    final y = ((srcH - cropHeight) / 2).round();
+
+    work = img.copyCrop(
+      work,
+      x: math.max(0, x),
+      y: math.max(0, y),
+      width: math.min(cropWidth, srcW),
+      height: math.min(cropHeight, srcH),
+    );
+
+    // Resize to exact target dimensions
+    work = img.copyResize(
+      work,
+      width: targetWidth,
+      height: targetHeight,
+      interpolation: a.interpolation,
+    );
+
+    return _encode(work, a.jpegQuality, a.forceJpeg);
+  }
+
+  // ---- Mode 3: Aspect-ratio with primary exact (no distortion) ----
   if (a.arW != null &&
       a.arH != null &&
       a.target != null &&
@@ -246,18 +348,27 @@ _Res _isolate(_Args a) {
     final srcRatio = srcW / srcH;
 
     // 1) Center-crop to the requested ratio (no distortion)
+    int cropWidth = srcW;
+    int cropHeight = srcH;
+
     if (srcRatio > targetRatio) {
       // too wide: crop width
-      final newW = (srcH * targetRatio).round();
-      final x = ((srcW - newW) / 2).round();
-      work = img.copyCrop(work, x: x, y: 0, width: newW, height: srcH);
+      cropWidth = (srcH * targetRatio).round();
     } else if (srcRatio < targetRatio) {
       // too tall: crop height
-      final newH = (srcW / targetRatio).round();
-      final y = ((srcH - newH) / 2).round();
-      work = img.copyCrop(work, x: 0, y: y, width: srcW, height: newH);
+      cropHeight = (srcW / targetRatio).round();
     }
-    // at this point, work.width/work.height == targetRatio (within rounding)
+
+    final x = ((srcW - cropWidth) / 2).round();
+    final y = ((srcH - cropHeight) / 2).round();
+
+    work = img.copyCrop(
+      work,
+      x: math.max(0, x),
+      y: math.max(0, y),
+      width: math.min(cropWidth, srcW),
+      height: math.min(cropHeight, srcH),
+    );
 
     // 2) Compute desired output dimensions from target side
     int desiredW, desiredH;
@@ -271,8 +382,8 @@ _Res _isolate(_Args a) {
 
     // 3) Choose scale factor
     double scale = a.targetIsWidth!
-        ? desiredW / work.width
-        : desiredH / work.height;
+        ? desiredW / work.width.toDouble()
+        : desiredH / work.height.toDouble();
 
     if (a.preventUpscale == true) {
       scale = math.min(scale, 1.0); // don't enlarge beyond current
