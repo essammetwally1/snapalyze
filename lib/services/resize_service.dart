@@ -27,13 +27,16 @@ enum ResizeQuality {
 class ResizeService {
   static const _maxDimension = 8192;
 
+  // --------------------------------------------------------------------------
+  // PUBLIC APIS
+  // --------------------------------------------------------------------------
+
   /// Manual resize to **exact** width × height (will stretch if aspect differs).
   Future<ResizeOutput> resizeExact({
     required String path,
     required int width,
     required int height,
     int jpegQuality = 90,
-
     bool forceJpeg = false,
     ResizeQuality quality = ResizeQuality.balanced,
   }) async {
@@ -55,16 +58,12 @@ class ResizeService {
     return ResizeOutput(file: outFile, width: res.w, height: res.h);
   }
 
-  /// Resize by **aspect ratio** with **primary side exact**.
+  /// Resize by **aspect ratio** with **primary side exact** (COVER).
   ///
-  /// - Provide ratio as [aspectW]:[aspectH].
-  /// - If [targetIsWidth] is true, output **width = target** exactly,
-  ///   and height is computed from the ratio (and vice-versa).
-  /// - We **center-crop** the original to the requested ratio (no distortion),
-  ///   then scale to hit the exact target side.
-  ///
-  /// Set [preventUpscale]=true if you prefer not to enlarge small images.
-  /// (In that case, the primary side may end up smaller than target.)
+  /// - ratio as [aspectW]:[aspectH].
+  /// - If [targetIsWidth] true => width = target (exact), height derived; image is
+  ///   center-cropped to that AR (no distortion) and scaled to fill (may crop edges).
+  /// - Set [preventUpscale]=true to avoid enlarging beyond source.
   Future<ResizeOutput> resizeByAspect({
     required String path,
     required int aspectW,
@@ -98,8 +97,45 @@ class ResizeService {
     return ResizeOutput(file: outFile, width: res.w, height: res.h);
   }
 
-  /// NEW: Force image to fill exactly the specified width or height while maintaining aspect ratio
-  /// This will crop the image to fill the entire area without distortion
+  /// Aspect-ratio **CONTAIN** (no crop): fit the whole image into a canvas that
+  /// matches [aspectW:aspectH] with one exact target side (width OR height).
+  /// Remaining area is filled with [backgroundColor] (ARGB). For transparency,
+  /// use 0x00000000 and keep PNG (don’t force JPEG).
+  Future<ResizeOutput> resizeByAspectContain({
+    required String path,
+    required int aspectW,
+    required int aspectH,
+    required int target,
+    required bool targetIsWidth,
+    int backgroundColor = 0x00000000, // transparent by default
+    int jpegQuality = 90,
+    bool forceJpeg = false,
+    ResizeQuality quality = ResizeQuality.smooth,
+  }) async {
+    assert(aspectW > 0 && aspectH > 0 && target > 0);
+    _validateDim(target);
+
+    final res = await compute<_Args, _Res>(
+      _isolate,
+      _Args.aspectContain(
+        path: path,
+        arW: aspectW,
+        arH: aspectH,
+        target: target,
+        targetIsWidth: targetIsWidth,
+        backgroundColor: backgroundColor,
+        interpolation: quality.interpolation,
+        jpegQuality: jpegQuality,
+        forceJpeg: forceJpeg,
+      ),
+    );
+
+    final outFile = await _writeTemp(res.bytes, res.ext);
+    return ResizeOutput(file: outFile, width: res.w, height: res.h);
+  }
+
+  /// Force image to fill exactly [width]×[height] while maintaining aspect ratio
+  /// (crop to fill). Equivalent to "cover a fixed box".
   Future<ResizeOutput> resizeFill({
     required String path,
     required int width,
@@ -126,7 +162,9 @@ class ResizeService {
     return ResizeOutput(file: outFile, width: res.w, height: res.h);
   }
 
-  // ---------- validation & file helpers ----------
+  // --------------------------------------------------------------------------
+  // VALIDATION & FILE HELPERS
+  // --------------------------------------------------------------------------
 
   void _validateDim(int n) {
     if (n <= 0) throw Exception('Dimension must be > 0');
@@ -175,6 +213,10 @@ class _Args {
   // fill (crop to fill exact dimensions)
   final bool? isFill;
 
+  // aspect contain (no crop; letterbox/pillarbox)
+  final bool? isContain;
+  final int? backgroundColor; // ARGB
+
   _Args._({
     required this.path,
     required this.interpolation,
@@ -187,8 +229,9 @@ class _Args {
     this.target,
     this.targetIsWidth,
     this.preventUpscale,
-
     this.isFill,
+    this.isContain,
+    this.backgroundColor,
   });
 
   factory _Args.stretch({
@@ -245,6 +288,29 @@ class _Args {
     jpegQuality: jpegQuality,
     forceJpeg: forceJpeg,
   );
+
+  factory _Args.aspectContain({
+    required String path,
+    required int arW,
+    required int arH,
+    required int target,
+    required bool targetIsWidth,
+    required int backgroundColor,
+    required img.Interpolation interpolation,
+    required int jpegQuality,
+    required bool forceJpeg,
+  }) => _Args._(
+    path: path,
+    arW: arW,
+    arH: arH,
+    target: target,
+    targetIsWidth: targetIsWidth,
+    isContain: true,
+    backgroundColor: backgroundColor,
+    interpolation: interpolation,
+    jpegQuality: jpegQuality,
+    forceJpeg: forceJpeg,
+  );
 }
 
 class _Res {
@@ -276,8 +342,53 @@ _Res _isolate(_Args a) {
   // Bake EXIF so width/height reflect what users see
   img.Image work = img.bakeOrientation(decoded0);
 
-  // ---- Mode 1: Stretch to exact WxH ----
+  // ---- Aspect-ratio CONTAIN (no crop, letterbox/pillarbox) ----
+  if (a.isContain == true &&
+      a.arW != null &&
+      a.arH != null &&
+      a.target != null &&
+      a.targetIsWidth != null) {
+    final src = work;
+    final srcW = src.width, srcH = src.height;
 
+    // 1) Compute canvas size from AR + one target side
+    final targetRatio = a.arW! / a.arH!;
+    int canvasW, canvasH;
+    if (a.targetIsWidth!) {
+      canvasW = a.target!;
+      canvasH = (canvasW / targetRatio).round();
+    } else {
+      canvasH = a.target!;
+      canvasW = (canvasH * targetRatio).round();
+    }
+
+    // 2) Scale source to FIT (contain)
+    final sx = canvasW / srcW;
+    final sy = canvasH / srcH;
+    final scale = (sx < sy) ? sx : sy;
+
+    final fittedW = math.max(1, (srcW * scale).round());
+    final fittedH = math.max(1, (srcH * scale).round());
+
+    final fitted = img.copyResize(
+      src,
+      width: fittedW,
+      height: fittedH,
+      interpolation: a.interpolation,
+    );
+
+    // 3) Create canvas and center the fitted image
+    final canvas = img.Image(width: canvasW, height: canvasH);
+
+    final offX = ((canvasW - fittedW) / 2).round();
+    final offY = ((canvasH - fittedH) / 2).round();
+    img.compositeImage(canvas, fitted, dstX: offX, dstY: offY);
+
+    // 4) Encode
+    return _encode(canvas, a.jpegQuality, a.forceJpeg);
+  }
+
+  // ---- Stretch to exact WxH (may distort) ----
   if (a.width != null &&
       a.height != null &&
       a.arW == null &&
@@ -291,7 +402,7 @@ _Res _isolate(_Args a) {
     return _encode(work, a.jpegQuality, a.forceJpeg);
   }
 
-  // ---- NEW Mode 2: Fill exact dimensions (crop to fill) ----
+  // ---- Fill exact dimensions (crop to fill, cover a fixed box) ----
   if (a.isFill == true && a.width != null && a.height != null) {
     final targetWidth = a.width!;
     final targetHeight = a.height!;
@@ -301,19 +412,14 @@ _Res _isolate(_Args a) {
 
     // Calculate crop dimensions to fill the target area
     int cropWidth, cropHeight;
-    // ignore: unused_local_variable
-    double scale;
-
     if (srcRatio > targetRatio) {
       // Source is wider than target - crop width
       cropHeight = srcH;
       cropWidth = (srcH * targetRatio).round();
-      scale = targetHeight / cropHeight.toDouble();
     } else {
       // Source is taller than target - crop height
       cropWidth = srcW;
       cropHeight = (srcW / targetRatio).round();
-      scale = targetWidth / cropWidth.toDouble();
     }
 
     // Center crop
@@ -339,7 +445,7 @@ _Res _isolate(_Args a) {
     return _encode(work, a.jpegQuality, a.forceJpeg);
   }
 
-  // ---- Mode 3: Aspect-ratio with primary exact (no distortion) ----
+  // ---- Aspect-ratio with primary exact (COVER; center crop to AR, then scale) ----
   if (a.arW != null &&
       a.arH != null &&
       a.target != null &&
@@ -403,6 +509,6 @@ _Res _isolate(_Args a) {
     return _encode(work, a.jpegQuality, a.forceJpeg);
   }
 
-  // Fallback: just encode the original
+  // Fallback: just encode the original after EXIF bake
   return _encode(work, a.jpegQuality, a.forceJpeg);
 }
