@@ -1,8 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'package:snapalyze/app_theme.dart';
 import 'package:snapalyze/authentication/auth_screen.dart';
+import 'package:snapalyze/components/root_decider.dart';
 import 'package:snapalyze/onboarding/onboarding_screen.dart';
 import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/screens/analysis_screen.dart';
@@ -15,7 +17,7 @@ Future<void> main() async {
   runApp(
     ChangeNotifierProvider(
       create: (context) => UserProvider(),
-      child: Snapalyze(),
+      child: const Snapalyze(),
     ),
   );
 }
@@ -27,18 +29,18 @@ class Snapalyze extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      routes: {
-        HomeScreen.routeName: (context) => HomeScreen(),
-        AnalysisScreen.routeName: (context) => AnalysisScreen(),
-        ResizeScreen.routeName: (context) => ResizeScreen(),
-        OnboardingScreen.routeName: (context) => OnboardingScreen(),
-        AuthScreen.routeName: (context) => AuthScreen(),
-      },
-      initialRoute: AuthScreen.routeName,
-
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
+      routes: {
+        HomeScreen.routeName: (context) => const HomeScreen(),
+        AnalysisScreen.routeName: (context) => const AnalysisScreen(),
+        ResizeScreen.routeName: (context) => const ResizeScreen(),
+        OnboardingScreen.routeName: (context) => const OnboardingScreen(),
+        AuthScreen.routeName: (context) => const AuthScreen(),
+      },
+      // Instead of initialRoute → we use a root widget
+      home: const RootDecider(),
     );
   }
 }

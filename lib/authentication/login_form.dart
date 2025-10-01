@@ -1,7 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:snapalyze/app_theme.dart';
 import 'package:snapalyze/components/custom_elevetedbutton.dart';
 import 'package:snapalyze/components/custom_textfeild.dart';
+import 'package:snapalyze/consts.dart';
 import 'package:snapalyze/models/user_model.dart';
 import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/screens/home_screen.dart';
@@ -27,11 +33,18 @@ class LoginForm extends StatefulWidget {
 }
 
 class _LoginFormState extends State<LoginForm> {
-  GlobalKey<FormState> globalKey = GlobalKey<FormState>();
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
+  final GlobalKey<FormState> globalKey = GlobalKey<FormState>();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  late UserModel user;
+
   bool isLoading = false;
   bool rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
@@ -64,16 +77,16 @@ class _LoginFormState extends State<LoginForm> {
               isEmail: true,
               controller: emailController,
               validator: (value) {
-                if (value!.isEmpty) {
-                  return 'Enter e-mail';
-                } else if (!value.contains('@gmail.com')) {
+                final v = value?.trim() ?? '';
+                if (v.isEmpty) return 'Enter e-mail';
+                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v)) {
                   return 'Enter valid e-mail';
                 }
                 return null;
               },
             ),
 
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             // Password Field
             CustomTextField(
@@ -83,29 +96,62 @@ class _LoginFormState extends State<LoginForm> {
               isEmail: false,
               controller: passwordController,
               validator: (value) {
-                if (value!.isEmpty) {
-                  return 'Enter password';
-                } else if (value.length < 9) {
+                final v = value ?? '';
+                if (v.isEmpty) return 'Enter password';
+                if (v.length < 9) {
                   return 'Password must be at least 9 characters';
                 }
                 return null;
               },
             ),
 
-            SizedBox(height: 24),
+            const SizedBox(height: 10),
+
+            // Remember me + (optional) Forgot password
+            Row(
+              children: [
+                Checkbox(
+                  value: rememberMe,
+                  onChanged: (val) {
+                    setState(() => rememberMe = val ?? false);
+                  },
+                  // fill color of the box (white when unchecked, still white when checked)
+                  fillColor: WidgetStateProperty.resolveWith<Color>(
+                    (states) => AppTheme.white,
+                  ),
+                  // the tick/check color
+                  checkColor: AppTheme.primary,
+                  // rounded corners
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6), // adjust roundness
+                  ),
+                  side: const BorderSide(
+                    color: Colors.grey, // outline color when unchecked
+                    width: 1.5,
+                  ),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                Text(
+                  "Remember me",
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
 
             // Login Button
             CustomElevatedButton(
               isLoading: isLoading,
               text: 'Login',
               onPressed: () {
+                FocusScope.of(context).unfocus();
                 if (globalKey.currentState!.validate()) {
                   login();
                 }
               },
             ),
 
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
 
             // OR Divider
             Row(
@@ -123,17 +169,15 @@ class _LoginFormState extends State<LoginForm> {
               ],
             ),
 
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
 
             // Create Account Button
             CustomElevatedButton(
               text: 'Create a new Account',
-              onPressed: () {
-                widget.move?.call(false);
-              },
+              onPressed: () => widget.move?.call(false),
             ),
 
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -143,27 +187,30 @@ class _LoginFormState extends State<LoginForm> {
   Future<void> login() async {
     if (isLoading) return;
 
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     try {
-      final UserModel user = await FirebaseService.logIn(
+      user = await FirebaseService.logIn(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-      Provider.of<UserProvider>(context, listen: false).setUser(user);
+
+      // Persist remember-me choice + email (if checked)
+      await Provider.of<UserProvider>(
+        context,
+        listen: false,
+      ).setUser(user, remember: rememberMe);
+      // Update provider with the logged-in user@
 
       Utilis.showSuccessMessage('Login Success');
 
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
     } catch (error) {
       Utilis.showErrorMessage(error.toString());
     } finally {
       if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
       }
     }
   }

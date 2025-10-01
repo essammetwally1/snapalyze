@@ -301,6 +301,7 @@ _Res _isolate(_Args a) {
 
     // Calculate crop dimensions to fill the target area
     int cropWidth, cropHeight;
+    // ignore: unused_local_variable
     double scale;
 
     if (srcRatio > targetRatio) {
