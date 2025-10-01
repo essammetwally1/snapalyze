@@ -36,32 +36,26 @@ class FirebaseService {
       await usersCollection.doc(userModel.id).set(userModel);
 
       return userModel;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(
+        e.code,
+      ).toString().replaceFirst('Exception:', '').replaceAll('-', ' ');
+    } on FirebaseException catch (e) {
+      log('Firestore Error: ${e.code} - ${e.message}');
+
+      throw Exception('Failed to access user data. Please try again.');
     } catch (error) {
+      // throw Exception('An unexpected error occurred. Please try again.');
       log('Firebase registration error: ${error.toString()}');
 
       String errorMessage = 'Registration failed. Please try again.';
 
-      if (error is FirebaseAuthException) {
-        switch (error.code) {
-          case 'email-already-in-use':
-            errorMessage = 'This email is already registered.';
-            break;
-          case 'invalid-email':
-            errorMessage = 'Please enter a valid email address.';
-            break;
-          case 'operation-not-allowed':
-            errorMessage = 'Email/password accounts are not enabled.';
-            break;
-          case 'weak-password':
-            errorMessage = 'Password is too weak.';
-            break;
-          default:
-            errorMessage = error.message ?? 'Registration failed.';
-        }
-      } else if (error is FirebaseException) {
-        errorMessage = error.message ?? 'Firebase error occurred.';
-      }
-      throw Exception(errorMessage);
+      throw Exception(
+        errorMessage
+            .toString()
+            .replaceFirst('Exception:', '')
+            .replaceAll('-', ' '),
+      );
     }
   }
 
@@ -85,7 +79,9 @@ class FirebaseService {
       }
     } on FirebaseAuthException catch (e) {
       log('Firebase Auth Error: ${e.code} - ${e.message}');
-      rethrow;
+      throw Exception(
+        e.code,
+      ).toString().replaceFirst('Exception:', '').replaceAll('-', ' ');
     } on FirebaseException catch (e) {
       log('Firestore Error: ${e.code} - ${e.message}');
       throw Exception('Failed to access user data. Please try again.');
