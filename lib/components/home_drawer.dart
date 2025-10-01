@@ -10,7 +10,8 @@ class HomeDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final UserModel user = Provider.of<UserProvider>(context).currentUser!;
+    final UserModel userModel = Provider.of<UserProvider>(context).currentUser!;
+    final UserProvider userProvider = Provider.of<UserProvider>(context);
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return Drawer(
@@ -34,15 +35,15 @@ class HomeDrawer extends StatelessWidget {
                       radius: 40,
                       backgroundColor: AppTheme.primary,
                       backgroundImage: AssetImage(
-                        'assets/avatar/${user.gender}.png',
+                        'assets/avatar/${userModel.gender}.png',
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(user.name, style: textTheme.labelSmall),
+                  Text(userModel.name, style: textTheme.labelSmall),
                   const SizedBox(height: 8),
                   Text(
-                    user.email,
+                    userModel.email,
                     style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -63,7 +64,7 @@ class HomeDrawer extends StatelessWidget {
                   ),
                   onPressed: () async {
                     // clear provider + prefs
-                    await context.read<UserProvider>().signOut();
+                    await userProvider.signOut();
                     if (context.mounted) {
                       Navigator.of(context).pushNamedAndRemoveUntil(
                         AuthScreen.routeName,

@@ -39,7 +39,6 @@ class Snapalyze extends StatelessWidget {
         OnboardingScreen.routeName: (context) => const OnboardingScreen(),
         AuthScreen.routeName: (context) => const AuthScreen(),
       },
-      // Instead of initialRoute → we use a root widget
       home: const RootDecider(),
     );
   }

@@ -1,13 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:snapalyze/app_theme.dart';
 import 'package:snapalyze/components/custom_elevetedbutton.dart';
 import 'package:snapalyze/components/custom_textfeild.dart';
-import 'package:snapalyze/consts.dart';
 import 'package:snapalyze/models/user_model.dart';
 import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/screens/home_screen.dart';

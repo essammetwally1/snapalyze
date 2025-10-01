@@ -95,9 +95,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final UserModel user = Provider.of<UserProvider>(context).currentUser!;
+    final UserModel? user = Provider.of<UserProvider>(context).currentUser;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final Size size = MediaQuery.of(context).size;
+
+    if (user == null) {
+      // Show a loading indicator or redirect to login screen
+      return const Scaffold(
+        backgroundColor: AppTheme.white,
+        body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+      );
+    }
 
     return Scaffold(
       drawer: const HomeDrawer(),
