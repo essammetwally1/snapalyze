@@ -1,5 +1,5 @@
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/shared/app_theme.dart';
 
 class Utilis {
   static showErrorMessage(String? message) => Fluttertoast.showToast(

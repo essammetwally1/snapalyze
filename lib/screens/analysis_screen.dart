@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/shared/app_theme.dart';
 import 'package:snapalyze/models/pickedimage_model.dart';
 
 class AnalysisScreen extends StatefulWidget {

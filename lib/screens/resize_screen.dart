@@ -6,11 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/shared/app_theme.dart';
 
 import 'package:snapalyze/models/pickedimage_model.dart';
 import 'package:snapalyze/services/resize_service.dart';
-import 'package:snapalyze/utilis.dart';
+import 'package:snapalyze/shared/utilis.dart';
 
 class ResizeScreen extends StatefulWidget {
   static const String routeName = '/resizescreen';

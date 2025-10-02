@@ -5,6 +5,8 @@
 
     <!-- Android 13+ (API 33): granular photo/media permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
 
     <!-- Android 10–12 (API 29–32): read external storage -->
     <uses-permission

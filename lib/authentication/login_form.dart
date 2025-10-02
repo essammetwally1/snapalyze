@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/shared/app_theme.dart';
 import 'package:snapalyze/components/custom_elevetedbutton.dart';
 import 'package:snapalyze/components/custom_textfeild.dart';
 import 'package:snapalyze/models/user_model.dart';
 import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/screens/home_screen.dart';
 import 'package:snapalyze/services/firebase_service.dart';
-import 'package:snapalyze/utilis.dart';
+import 'package:snapalyze/shared/utilis.dart';
 
 class LoginForm extends StatefulWidget {
   final VoidCallback? onLoginPressed;

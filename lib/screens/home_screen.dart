@@ -5,7 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/shared/app_theme.dart';
 import 'package:snapalyze/components/home_drawer.dart';
 import 'package:snapalyze/models/pickedimage_model.dart';
 import 'package:snapalyze/models/user_model.dart';
@@ -14,7 +14,7 @@ import 'package:snapalyze/screens/analysis_screen.dart';
 import 'package:snapalyze/screens/resize_screen.dart';
 import 'package:snapalyze/screens/search_screen.dart';
 import 'package:snapalyze/services/analysis_service.dart';
-import 'package:snapalyze/utilis.dart';
+import 'package:snapalyze/shared/utilis.dart';
 
 class HomeScreen extends StatefulWidget {
   static const String routeName = '/home';

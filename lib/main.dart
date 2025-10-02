@@ -2,7 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/shared/app_theme.dart';
 import 'package:snapalyze/authentication/auth_screen.dart';
 import 'package:snapalyze/components/root_decider.dart';
 import 'package:snapalyze/onboarding/onboarding_screen.dart';

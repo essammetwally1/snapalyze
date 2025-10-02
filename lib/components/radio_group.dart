@@ -1,6 +1,6 @@
 // ===== RadioGroup shim (no deprecated APIs; same visual style) =====
 import 'package:flutter/material.dart';
-import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/shared/app_theme.dart';
 
 class RadioOption<T> {
   final T value;

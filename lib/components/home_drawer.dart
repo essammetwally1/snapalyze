@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:snapalyze/app_theme.dart';
+import 'package:snapalyze/shared/app_theme.dart';
 import 'package:snapalyze/models/user_model.dart';
 import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/authentication/auth_screen.dart';

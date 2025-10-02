@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snapalyze/models/user_model.dart';
-import 'package:snapalyze/consts.dart'; // contains rememberMeKey & rememberUser (if you have it)
+import 'package:snapalyze/shared/consts.dart'; // contains rememberMeKey & rememberUser (if you have it)
 
 class UserProvider with ChangeNotifier {
   UserModel? _currentUser;
