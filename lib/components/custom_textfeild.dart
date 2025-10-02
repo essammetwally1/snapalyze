@@ -15,6 +15,7 @@ class CustomTextField extends StatefulWidget {
   final VoidCallback? onTap;
   final bool readOnly;
   final Widget? suffixIcon;
+  final FocusNode? focusNode;
 
   const CustomTextField({
     super.key,
@@ -30,6 +31,7 @@ class CustomTextField extends StatefulWidget {
     this.isPassword = false,
     this.isEmail = false,
     this.suffixIcon,
+    this.focusNode,
   });
 
   @override
@@ -38,11 +40,10 @@ class CustomTextField extends StatefulWidget {
 
 class _CustomTextFieldState extends State<CustomTextField> {
   bool _showPassword = true;
-  final FocusNode _focusNode = FocusNode();
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    widget.focusNode?.dispose();
     super.dispose();
   }
 
@@ -62,15 +63,16 @@ class _CustomTextFieldState extends State<CustomTextField> {
           maxLines: widget.maxLines,
           controller: widget.controller,
           obscureText: widget.isPassword ? _showPassword : false,
+
           keyboardType: widget.isEmail
               ? TextInputType.emailAddress
               : TextInputType.text,
-          focusNode: _focusNode,
+          focusNode: widget.focusNode,
           readOnly: widget.readOnly,
           onChanged: widget.onChange,
           onTap: widget.onTap,
           onTapOutside: (_) {
-            _focusNode.unfocus();
+            widget.focusNode?.unfocus();
           },
           autovalidateMode: AutovalidateMode.onUserInteraction,
           cursorColor: AppTheme.white,

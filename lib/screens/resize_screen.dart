@@ -291,7 +291,6 @@ class _ResizeScreenState extends State<ResizeScreen> {
                 // ====== SECTION 2: Fill Exact Dimensions ======
                 _card(
                   textTheme: textTheme,
-
                   title: 'Fill Exact Dimensions',
                   subtitle: 'Crops image to fill without distortion',
                   child: Column(
@@ -446,7 +445,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
                                 RadioOption(
                                   value: true,
                                   label: Text(
-                                    'Target is Width',
+                                    'Width',
                                     style: textTheme.titleMedium!.copyWith(
                                       color: AppTheme.primary,
                                       fontWeight: FontWeight.w500,
@@ -456,7 +455,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
                                 RadioOption(
                                   value: false,
                                   label: Text(
-                                    'Target is Height',
+                                    'Height',
                                     style: textTheme.titleMedium!.copyWith(
                                       color: AppTheme.primary,
                                       fontWeight: FontWeight.w500,
@@ -596,14 +595,20 @@ class _ResizeScreenState extends State<ResizeScreen> {
       final int arH = int.parse(_arHCtrl.text);
       final int target = int.parse(_targetCtrl.text);
 
-      final ResizeOutput out = await ResizeService().resizeByAspect(
+      final int width, height;
+      if (_targetIsWidth) {
+        width = target;
+        height = (target * (arH / arW)).round();
+      } else {
+        height = target;
+        width = (target * (arW / arH)).round();
+      }
+
+      final ResizeOutput out = await ResizeService().resizeExact(
+        height: height,
+        width: width,
         path: _picked!.pickedImage.path,
-        aspectW: arW,
-        aspectH: arH,
-        target: target,
-        targetIsWidth: _targetIsWidth,
         jpegQuality: 90,
-        preventUpscale: false,
         quality: ResizeQuality.smooth,
       );
 
@@ -692,7 +697,7 @@ class _ResizeScreenState extends State<ResizeScreen> {
     return Card(
       elevation: 1.5,
       color: AppTheme.white,
-      shadowColor: AppTheme.grey.withValues(alpha: 0.25),
+      shadowColor: AppTheme.grey.withValues(alpha: 0.5),
       shape: RoundedRectangleBorder(
         side: BorderSide(color: AppTheme.grey.withValues(alpha: 0.25)),
         borderRadius: BorderRadius.circular(12),

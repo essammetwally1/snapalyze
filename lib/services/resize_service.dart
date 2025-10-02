@@ -64,38 +64,6 @@ class ResizeService {
   /// - If [targetIsWidth] true => width = target (exact), height derived; image is
   ///   center-cropped to that AR (no distortion) and scaled to fill (may crop edges).
   /// - Set [preventUpscale]=true to avoid enlarging beyond source.
-  Future<ResizeOutput> resizeByAspect({
-    required String path,
-    required int aspectW,
-    required int aspectH,
-    required int target,
-    required bool targetIsWidth,
-    bool preventUpscale = false,
-    int jpegQuality = 90,
-    bool forceJpeg = false,
-    ResizeQuality quality = ResizeQuality.smooth,
-  }) async {
-    assert(aspectW > 0 && aspectH > 0 && target > 0);
-    _validateDim(target);
-
-    final res = await compute<_Args, _Res>(
-      _isolate,
-      _Args.aspectPrimaryExact(
-        path: path,
-        arW: aspectW,
-        arH: aspectH,
-        target: target,
-        targetIsWidth: targetIsWidth,
-        preventUpscale: preventUpscale,
-        interpolation: quality.interpolation,
-        jpegQuality: jpegQuality,
-        forceJpeg: forceJpeg,
-      ),
-    );
-
-    final outFile = await _writeTemp(res.bytes, res.ext);
-    return ResizeOutput(file: outFile, width: res.w, height: res.h);
-  }
 
   /// Aspect-ratio **CONTAIN** (no crop): fit the whole image into a canvas that
   /// matches [aspectW:aspectH] with one exact target side (width OR height).
@@ -208,7 +176,6 @@ class _Args {
   final int? arH;
   final int? target;
   final bool? targetIsWidth;
-  final bool? preventUpscale;
 
   // fill (crop to fill exact dimensions)
   final bool? isFill;
@@ -228,7 +195,6 @@ class _Args {
     this.arH,
     this.target,
     this.targetIsWidth,
-    this.preventUpscale,
     this.isFill,
     this.isContain,
     this.backgroundColor,
@@ -245,28 +211,6 @@ class _Args {
     path: path,
     width: width,
     height: height,
-    interpolation: interpolation,
-    jpegQuality: jpegQuality,
-    forceJpeg: forceJpeg,
-  );
-
-  factory _Args.aspectPrimaryExact({
-    required String path,
-    required int arW,
-    required int arH,
-    required int target,
-    required bool targetIsWidth,
-    required bool preventUpscale,
-    required img.Interpolation interpolation,
-    required int jpegQuality,
-    required bool forceJpeg,
-  }) => _Args._(
-    path: path,
-    arW: arW,
-    arH: arH,
-    target: target,
-    targetIsWidth: targetIsWidth,
-    preventUpscale: preventUpscale,
     interpolation: interpolation,
     jpegQuality: jpegQuality,
     forceJpeg: forceJpeg,
@@ -491,10 +435,6 @@ _Res _isolate(_Args a) {
     double scale = a.targetIsWidth!
         ? desiredW / work.width.toDouble()
         : desiredH / work.height.toDouble();
-
-    if (a.preventUpscale == true) {
-      scale = math.min(scale, 1.0); // don't enlarge beyond current
-    }
 
     final outW = math.max(1, (work.width * scale).round());
     final outH = math.max(1, (work.height * scale).round());

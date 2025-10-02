@@ -1,3 +1,4 @@
+// lib/authentication/auth_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:snapalyze/authentication/login_form.dart';
@@ -8,7 +9,6 @@ class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _AuthScreenState createState() => _AuthScreenState();
 }
 
@@ -19,6 +19,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   late Animation<double> _animation2;
   late Animation<double> _animation3;
   late Animation<double> _animation4;
+
+  Timer? _delayStart; // <-- track the delayed start
   bool isLogin = true;
 
   @override
@@ -33,18 +35,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       duration: const Duration(seconds: 2),
     );
 
-    _animation1 =
-        Tween<double>(begin: .1, end: .15).animate(
-            CurvedAnimation(parent: _controller1, curve: Curves.easeInOut),
-          )
-          ..addListener(() => setState(() {}))
-          ..addStatusListener((status) {
-            if (status == AnimationStatus.completed) {
-              _controller1.reverse();
-            } else if (status == AnimationStatus.dismissed) {
-              _controller1.forward();
-            }
-          });
+    _animation1 = Tween<double>(begin: .1, end: .15).animate(
+      CurvedAnimation(parent: _controller1, curve: Curves.easeInOut),
+    )..addListener(() => setState(() {}));
 
     _animation2 = Tween<double>(begin: .02, end: .04).animate(
       CurvedAnimation(parent: _controller1, curve: Curves.easeInOut),
@@ -55,29 +48,28 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       duration: const Duration(seconds: 2),
     );
 
-    _animation3 =
-        Tween<double>(begin: .41, end: .38).animate(
-            CurvedAnimation(parent: _controller2, curve: Curves.easeInOut),
-          )
-          ..addListener(() => setState(() {}))
-          ..addStatusListener((status) {
-            if (status == AnimationStatus.completed) {
-              _controller2.reverse();
-            } else if (status == AnimationStatus.dismissed) {
-              _controller2.forward();
-            }
-          });
+    _animation3 = Tween<double>(begin: .41, end: .38).animate(
+      CurvedAnimation(parent: _controller2, curve: Curves.easeInOut),
+    )..addListener(() => setState(() {}));
 
     _animation4 = Tween<double>(begin: 170, end: 190).animate(
       CurvedAnimation(parent: _controller2, curve: Curves.easeInOut),
     )..addListener(() => setState(() {}));
 
-    Timer(const Duration(seconds: 2), () => _controller1.forward());
-    _controller2.forward();
+    // Start controller2 immediately in a ping-pong loop
+    _controller2.repeat(reverse: true);
+
+    // Start controller1 after 2 seconds, safely
+    _delayStart = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      // Loop it too; this replaces the old status listeners
+      _controller1.repeat(reverse: true);
+    });
   }
 
   @override
   void dispose() {
+    _delayStart?.cancel(); // <-- important
     _controller1.dispose();
     _controller2.dispose();
     super.dispose();
@@ -97,10 +89,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       backgroundColor: const Color(0xff192028),
       body: Stack(
         children: [
-          // Background animated circles
           _buildAnimatedCircles(size),
-
-          // Main content
           Positioned.fill(
             child: SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
@@ -146,11 +135,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             left: size.width * .8,
             child: CustomPaint(painter: MyPainter(_animation4.value)),
           ),
-
           Positioned(
             top: size.height * .7,
             left: size.width * (_animation1.value + .6),
-            child: CustomPaint(painter: MyPainter(12)),
+            child: CustomPaint(painter: MyPainter(8)),
+          ),
+          Positioned(
+            top: size.height * .85,
+            left: size.width * (_animation1.value + .7),
+            child: CustomPaint(painter: MyPainter(25)),
           ),
         ],
       ),
@@ -158,12 +151,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 }
 
-// Custom Painter for Animated Circles
 class MyPainter extends CustomPainter {
   final double radius;
-
   MyPainter(this.radius);
-
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -177,7 +167,6 @@ class MyPainter extends CustomPainter {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ).createShader(Rect.fromCircle(center: Offset.zero, radius: radius));
-
     canvas.drawCircle(Offset.zero, radius, paint);
   }
 

@@ -33,6 +33,7 @@ class _RegisterFormState extends State<RegisterForm> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   TextEditingController confirmPasswordController = TextEditingController();
+
   Color genderColor = AppTheme.white;
   bool isLoading = false;
   String? selectedGender;
@@ -213,6 +214,7 @@ class _RegisterFormState extends State<RegisterForm> {
             CustomTextField(
               iconPathName: 'mail',
               hintText: 'Enter your email',
+
               isPassword: false,
               isEmail: true,
               controller: emailController,
@@ -229,6 +231,7 @@ class _RegisterFormState extends State<RegisterForm> {
               controller: passwordController,
               hintText: 'Password',
               iconPathName: 'password',
+
               isPassword: true,
               validator: (value) {
                 if (value!.isEmpty) return 'Enter password';
@@ -257,6 +260,7 @@ class _RegisterFormState extends State<RegisterForm> {
               controller: confirmPasswordController,
               hintText: 'Confirm Password',
               iconPathName: 'password',
+
               isPassword: true,
               validator: (value) {
                 if (value!.isEmpty) return 'Enter confirm password';

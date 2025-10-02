@@ -7,6 +7,8 @@ import 'package:snapalyze/authentication/auth_screen.dart';
 import 'package:snapalyze/components/root_decider.dart';
 import 'package:snapalyze/onboarding/onboarding_screen.dart';
 import 'package:snapalyze/providers/user_provider.dart';
+import 'package:snapalyze/providers/pexels_provider.dart'; // <-- add this
+import 'package:snapalyze/services/pexels_service.dart'; // <-- add this
 import 'package:snapalyze/screens/analysis_screen.dart';
 import 'package:snapalyze/screens/home_screen.dart';
 import 'package:snapalyze/screens/resize_screen.dart';
@@ -15,9 +17,15 @@ import 'package:snapalyze/screens/search_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => UserProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(
+          create: (_) => PexelsProvider(PexelsService())..loadCurated(),
+        ),
+      ],
       child: const Snapalyze(),
     ),
   );

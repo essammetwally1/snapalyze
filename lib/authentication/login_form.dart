@@ -32,6 +32,7 @@ class _LoginFormState extends State<LoginForm> {
   final GlobalKey<FormState> globalKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
   late UserModel user;
 
   bool isLoading = false;
