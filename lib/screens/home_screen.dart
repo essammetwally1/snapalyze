@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -11,7 +12,9 @@ import 'package:snapalyze/models/user_model.dart';
 import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/screens/analysis_screen.dart';
 import 'package:snapalyze/screens/resize_screen.dart';
+import 'package:snapalyze/screens/search_screen.dart';
 import 'package:snapalyze/services/analysis_service.dart';
+import 'package:snapalyze/utilis.dart';
 
 class HomeScreen extends StatefulWidget {
   static const String routeName = '/home';
@@ -45,9 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ).pushNamed(AnalysisScreen.routeName, arguments: pickedimageModel);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to analyze image: $e')));
+      Utilis.showErrorMessage('Failed to analyze image: $e');
     } finally {
       if (mounted) setState(() => isLoadingAnalyze = false);
     }
@@ -112,13 +113,14 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         toolbarHeight: size.height * 0.1,
-        title: Builder(
-          builder: (context) {
-            return GestureDetector(
-              onTap: () => Scaffold.of(context).openDrawer(),
-              child: Row(
-                children: [
-                  CircleAvatar(
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Builder(
+                builder: (context) => InkWell(
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                  child: CircleAvatar(
                     radius: 25,
                     backgroundColor: AppTheme.white,
                     child: CircleAvatar(
@@ -129,29 +131,34 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'snapalyze',
-                        style: textTheme.labelSmall!.copyWith(
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'FjallaOne',
-                          decorationColor: AppTheme.primary,
-                          shadows: [
-                            Shadow(color: AppTheme.white, blurRadius: 40),
-                            Shadow(color: AppTheme.white, blurRadius: 10),
-                            Shadow(color: AppTheme.white, blurRadius: 10),
-                            Shadow(color: AppTheme.white, blurRadius: 10),
-                          ],
-                        ),
-                      ),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    'snapalyze',
+                    style: textTheme.labelSmall!.copyWith(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'FjallaOne',
+                      decorationColor: AppTheme.primary,
+                      shadows: [
+                        Shadow(color: AppTheme.white, blurRadius: 40),
+                        Shadow(color: AppTheme.white, blurRadius: 10),
+                        Shadow(color: AppTheme.white, blurRadius: 10),
+                        Shadow(color: AppTheme.white, blurRadius: 10),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            );
-          },
+              InkWell(
+                onTap: () =>
+                    Navigator.of(context).pushNamed(SearchScreen.routeName),
+                child: SvgPicture.asset('assets/icons/search.svg'),
+              ),
+            ],
+          ),
         ),
       ),
       body: Padding(

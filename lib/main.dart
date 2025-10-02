@@ -10,6 +10,7 @@ import 'package:snapalyze/providers/user_provider.dart';
 import 'package:snapalyze/screens/analysis_screen.dart';
 import 'package:snapalyze/screens/home_screen.dart';
 import 'package:snapalyze/screens/resize_screen.dart';
+import 'package:snapalyze/screens/search_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,7 @@ class Snapalyze extends StatelessWidget {
         HomeScreen.routeName: (context) => const HomeScreen(),
         AnalysisScreen.routeName: (context) => const AnalysisScreen(),
         ResizeScreen.routeName: (context) => const ResizeScreen(),
+        SearchScreen.routeName: (context) => const SearchScreen(),
         OnboardingScreen.routeName: (context) => const OnboardingScreen(),
         AuthScreen.routeName: (context) => const AuthScreen(),
       },

@@ -14,6 +14,7 @@ class CustomTextField extends StatefulWidget {
   final bool isEmail;
   final VoidCallback? onTap;
   final bool readOnly;
+  final Widget? suffixIcon;
 
   const CustomTextField({
     super.key,
@@ -28,6 +29,7 @@ class CustomTextField extends StatefulWidget {
     this.readOnly = false,
     this.isPassword = false,
     this.isEmail = false,
+    this.suffixIcon,
   });
 
   @override
@@ -106,14 +108,14 @@ class _CustomTextFieldState extends State<CustomTextField> {
                             ),
                     ),
                   )
-                : null,
+                : widget.suffixIcon,
 
             prefixIcon: widget.iconPathName == null
                 ? null
                 : Padding(
                     padding: const EdgeInsets.only(left: 16, right: 12),
                     child: SvgPicture.asset(
-                      'assets/${widget.iconPathName}.svg',
+                      'assets/icons/${widget.iconPathName}.svg',
                       width: 20,
                       height: 20,
                       fit: BoxFit.scaleDown,
